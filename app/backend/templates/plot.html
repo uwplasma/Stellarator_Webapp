@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %} Stellarator {% endblock title %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row d-flex align-items-center justify-content-center" style="margin-top:100px;">
+        <div class="col-md-8 col-12">
+            <h1>Stellarator Plot</h1>
+            <img src="data:image/png;base64,{{ plot_data }}" alt="Stellarator Plot" style="width: 100%;">
+            <br>
+            <a href="{{ url_for('index') }}">Back to Configuration List</a>
+        </div>
+    </div>
+</div>
+
+{% endblock content %}
