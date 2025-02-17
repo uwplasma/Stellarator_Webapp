@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask_cors import CORS, cross_origin  # Import this
 import sqlite3
 from qsc import Qsc
 import matplotlib
@@ -6,11 +7,12 @@ import matplotlib.pyplot as plt
 import io
 import base64
 
+
 # Set the backend to 'Agg' to disable GUI
 matplotlib.use("Agg")
 
 app = Flask(__name__)
-
+CORS(app)
 
 # Connect to SQLite database
 def connect_db():
@@ -88,14 +90,45 @@ def generate_plot(config):
     return img_data
 
 
-@app.route("/")
-def index():
-    # Fetch configurations from the database
+@app.route("/api/configs", methods=["GET"])
+@cross_origin()
+def get_configs():
     configs = fetch_configs()
-    return render_template("index.html", configs=configs)
+    # Convert from tuple to dictionary or any serializable format
+    data = [
+        {
+            "id": row[0],
+            "rc1": row[1],
+            "rc2": row[2],
+            "rc3": row[3],
+            "zs1": row[4],
+            "zs2": row[5],
+            "zs3": row[6],
+            "nfp": row[7],
+            "etabar": row[8]
+
+        }
+        for row in configs
+    ]
+    return jsonify(data)
 
 
-@app.route("/plot/<int:config_id>")
+# New API endpoint for plot data for the React app
+@app.route("/api/plot/<int:config_id>", methods=["GET"])
+@cross_origin()
+def get_plot_api(config_id):
+    configs = fetch_configs()
+    selected_config = next((config for config in configs if config[0] == config_id), None)
+    if not selected_config:
+        return jsonify({"error": "Configuration not found"}), 404
+
+    plot_data = generate_plot(selected_config)
+    return jsonify({"plot_data": plot_data})
+
+
+
+@app.route("/api/plot/<int:config_id>")
+@cross_origin()
 def plot(config_id):
     # Fetch the specific configuration
     configs = fetch_configs()
