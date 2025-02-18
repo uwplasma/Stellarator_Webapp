@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-from flask_cors import CORS, cross_origin  # Import this
+from flask_cors import CORS, cross_origin  
 import sqlite3
 from qsc import Qsc
 import matplotlib
