@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import "./Config.css";
+import ThreeModel from "./3d";
+import StellaratorTable from "./table"; // Import your table component
 
 function ConfigList() {
   const [configs, setConfigs] = useState([]);
@@ -17,7 +19,8 @@ function ConfigList() {
 
   return (
     <div className="header-container">
-      <h1>A Repository of Quasi-symmetric Stellarator Designs</h1>
+      
+      <h1>A Repository of Quasi-symmetric Stellarator Designs </h1>
       <div className="image-explanation" style={{ marginTop: "100px" }}>
         <div className="explanation">
           <p className="explanation-1">
@@ -37,48 +40,18 @@ function ConfigList() {
             src="/main.jpg"
             alt="Rotating"
             className="Stellarator-image"
-            
           />
         </div>
       </div>
 
+      <div style={{ marginTop: "50px", backgroundColor: "white" }}>
+        <h2>Interactive 3D Model</h2>
+        <ThreeModel />
+      </div>
+
       <div className="table-container">
-        <h2>Select a Stellarator Configuration</h2>
-        <table className="Stellarator-table">
-          <thead>
-            <tr>
-              <th>View Plot</th>
-              <th>ID</th>
-              <th>rc1</th>
-              <th>rc2</th>
-              <th>rc3</th>
-              <th>zs1</th>
-              <th>zs2</th>
-              <th>zs3</th>
-              <th>nfp</th>
-              <th>etabar</th>
-            </tr>
-          </thead>
-          <tbody>
-            {configs.map((config) => (
-              <tr key={config.id}>
-                <td>
-                  {/* Link to the Plot page if using React Router, e.g. /plot/ID */}
-                  <a href={`/plot/${config.id}`}>View</a>
-                </td>
-                <td>{config.id}</td>
-                <td>{config.rc1}</td>
-                <td>{config.rc2}</td>
-                <td>{config.rc3}</td>
-                <td>{config.zs1}</td>
-                <td>{config.zs2}</td>
-                <td>{config.zs3}</td>
-                <td>{config.nfp}</td>
-                <td>{config.etabar}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* Render the new StellaratorTable component instead of the old table */}
+        <StellaratorTable />
       </div>
     </div>
   );
