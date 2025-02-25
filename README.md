@@ -36,15 +36,12 @@ This project is a full-stack web application that displays and plots quasi-symme
 
 ## Usage
 
-### Checkout the Correct Git Branch
-
-Before running the application, ensure you are on the `frontend` branch when inside the project directory:
+### Running the Backend
+Go to the Backend Directory:
 
 ```sh
-git checkout frontend
+cd app/backend
 ```
-
-### Running the Backend
 
 Install dependencies:
 
@@ -61,6 +58,12 @@ python3 routes.py
 The backend will be available at [http://127.0.0.1:5000/](http://127.0.0.1:5000/).
 
 ### Running the Frontend
+
+Go To the reactFrontend Directory:
+```sh
+cd ../frontend/reactfrontend
+```
+
 
 Install dependencies:
 
