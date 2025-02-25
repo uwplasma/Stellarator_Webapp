@@ -24,6 +24,8 @@ def get_configs():
     # Get query parameters for pagination and search
     page = request.args.get("page", default=1, type=int)
     limit = request.args.get("limit", default=500, type=int)
+
+    # Existing individual search parameters
     search_rc1 = request.args.get("search_rc1", default="", type=str)
     search_rc2 = request.args.get("search_rc2", default="", type=str)
     search_rc3 = request.args.get("search_rc3", default="", type=str)
@@ -32,17 +34,23 @@ def get_configs():
     search_zs3 = request.args.get("search_zs3", default="", type=str)
     search_nfp = request.args.get("search_nfp", default="", type=str)
     search_etabar = request.args.get("search_etabar", default="", type=str)
+
+    # Get filter parameters from MUI DataGrid
+    filter_value = request.args.get("filter", default="", type=str)
+    filter_field = request.args.get("filter_field", default="", type=str)
+
     offset = (page - 1) * limit
 
     conn = connect_db()
     cursor = conn.cursor()
 
-    # Modify the count query to include the search term
+    # Base queries
     count_query = "SELECT COUNT(*) FROM XGStels"
     data_query = "SELECT id, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar FROM XGStels"
     where_clauses = []
     params = []
 
+    # Existing individual search parameters (AND logic)
     if search_rc1:
         where_clauses.append("rc1 LIKE ?")
         params.append(f"%{search_rc1}%")
@@ -68,10 +76,17 @@ def get_configs():
         where_clauses.append("etabar LIKE ?")
         params.append(f"%{search_etabar}%")
 
+    # Apply the DataGrid filter
+    allowed_fields = {"rc1", "rc2", "rc3", "zs1", "zs2", "zs3", "nfp", "etabar"}
+    if filter_field and filter_field in allowed_fields and filter_value:
+        where_clauses.append(f"{filter_field} LIKE ?")
+        params.append(f"%{filter_value}%")
+
+    # Combine the WHERE clause if needed
     if where_clauses:
-        where_clause = " WHERE " + " AND ".join(where_clauses)
-        count_query += where_clause
-        data_query += where_clause
+        clause = " WHERE " + " AND ".join(where_clauses)
+        count_query += clause
+        data_query += clause
 
     # First, get total count
     cursor.execute(count_query, params)
@@ -85,21 +100,21 @@ def get_configs():
     conn.close()
 
     data = {
-         "configs": [
+        "configs": [
             {
-             "id": row[0],
-             "rc1": row[1],
-             "rc2": row[2],
-             "rc3": row[3],
-             "zs1": row[4],
-             "zs2": row[5],
-             "zs3": row[6],
-             "nfp": row[7],
-             "etabar": row[8]
+                "id": row[0],
+                "rc1": row[1],
+                "rc2": row[2],
+                "rc3": row[3],
+                "zs1": row[4],
+                "zs2": row[5],
+                "zs3": row[6],
+                "nfp": row[7],
+                "etabar": row[8]
             } for row in rows
-         ],
-         "totalPages": totalPages,
-         "count": count
+        ],
+        "totalPages": totalPages,
+        "count": count
     }
     return jsonify(data)
 
