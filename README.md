@@ -1,6 +1,3 @@
-Here’s your updated README in Markdown format:  
-
-```markdown
 # Stellarator Webapp
 
 ## Project Overview
