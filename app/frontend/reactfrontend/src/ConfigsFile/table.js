@@ -6,29 +6,34 @@ import Paper from "@mui/material/Paper";
 function StellaratorTable() {
   const [configs, setConfigs] = useState([]);
   const [totalRows, setTotalRows] = useState(0);
-  
-  // The pagination model
+
   const [paginationModel, setPaginationModel] = useState({
     page: 0,
     pageSize: 100
   });
-  
-  // The filter model (assume simple filtering on one column for this example)
+
   const [filterModel, setFilterModel] = useState({
     items: []
   });
-  
+
   useEffect(() => {
     const { page, pageSize } = paginationModel;
-    // Assuming a single filter item for simplicity:
-    const filterValue =
-      filterModel.items.length > 0 ? filterModel.items[0].value : "";
+
+    let filterValue = "";
+    let filterField = "";
+
+    if (filterModel.items.length > 0) {
+      filterValue = filterModel.items[0].value || "";
+      filterField = filterModel.items[0].columnField || "";
+    }
+
     axios
-      .get(`http://127.0.0.1:5000/api/configs`, {
+      .get("http://127.0.0.1:5000/api/configs", {
         params: {
           page: page + 1,
           limit: pageSize,
-          filter: filterValue
+          filter: filterValue,
+          filter_field: filterField
         }
       })
       .then(response => {
@@ -37,7 +42,8 @@ function StellaratorTable() {
       })
       .catch(error => console.error(error));
   }, [paginationModel, filterModel]);
-  
+
+  // Define the columns for your data
   const columns = [
     { field: "id", headerName: "ID", width: 70 },
     { field: "rc1", headerName: "rc1", width: 130 },
@@ -49,7 +55,7 @@ function StellaratorTable() {
     { field: "nfp", headerName: "nfp", width: 130 },
     { field: "etabar", headerName: "etabar", width: 130 }
   ];
-  
+
   return (
     <Paper sx={{ height: 500, width: "100%", marginTop: "50px" }}>
       <h2>Select a Stellarator Configuration</h2>
@@ -59,10 +65,9 @@ function StellaratorTable() {
         paginationMode="server"
         filterMode="server"
         paginationModel={paginationModel}
-        onPaginationModelChange={(newModel) => setPaginationModel(newModel)}
+        onPaginationModelChange={newModel => setPaginationModel(newModel)}
         onFilterModelChange={(newFilter) => {
           setFilterModel(newFilter);
-          // Reset to first page when filter changes:
           setPaginationModel(prev => ({ ...prev, page: 0 }));
         }}
         rowsPerPageOptions={[25, 50, 100]}
