@@ -40,6 +40,7 @@ It would be beneficial to have a venv folder to store the Python dependencies
 
 ### Running the Backend
 Ensure You are in the Stellarator_Webapp directory
+
 Go to the Backend Directory:
 
 ```sh
@@ -62,6 +63,7 @@ The backend will be available at [http://127.0.0.1:5000/](http://127.0.0.1:5000/
 
 ### Running the Frontend
 Ensure You are in the Stellarator_Webapp directory
+
 Go To the reactFrontend Directory:
 ```sh
 cd app/frontend/reactfrontend
