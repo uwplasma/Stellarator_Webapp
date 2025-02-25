@@ -76,6 +76,11 @@ Install dependencies:
 npm install
 ```
 
+Fix Vulnerabilities:
+```sh
+npm audit --production
+```
+
 Start the React development server:
 
 ```sh
