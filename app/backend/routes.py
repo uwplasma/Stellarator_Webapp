@@ -6,6 +6,10 @@ import matplotlib
 import matplotlib.pyplot as plt
 import io
 import base64
+import plotly
+import plotly.graph_objects as go
+import json
+import numpy as np  # Add this import
 
 # Set the backend to 'Agg' to disable GUI
 matplotlib.use("Agg")
@@ -145,15 +149,15 @@ def determine_order(config):
         return "r3"
     return "r1"  # Default to r1 if detection fails
 
-# Function to generate a base64-encoded image of the plot
+# Modified function to generate plot data for interactive visualization
 def generate_plot(config):
-    # Extract the config parameters (ignore the last two columns with _ placeholders)
+    # Extract the config parameters
     config_id, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar, B2c, p2, _, _ = config
 
     # Determine the appropriate order
     order = determine_order(config)
 
-    # Build the configuration parameters based on the order
+    # Build the configuration parameters
     config_params = {
         "rc": [1, rc1, rc2, rc3],
         "zs": [0, zs1, zs2, zs3],
@@ -161,31 +165,144 @@ def generate_plot(config):
         "etabar": etabar,
         "order": order,
     }
-
-    # Add higher-order parameters conditionally
-    if order in ("r2", "r3"):
+    if order in ("r2", "r3") and B2c is not None:
         config_params["B2c"] = B2c
-    if order == "r3":
+    if order == "r3" and p2 is not None:
         config_params["p2"] = p2
 
-    # Create the Qsc object based on the configuration
+    # Create the Qsc object
     stel = Qsc(**config_params)
+    
+    try:
+        # --------------------------------------------------
+        # Instead of using stel.plot(), use get_boundary() to get the 3D boundary data
+        # --------------------------------------------------
+        r = 0.1  # near-axis radius
+        
+        # Try different radii if the default fails
+        radii_to_try = [0.1, 0.05, 0.15, 0.2, 0.025]
+        success = False
+        
+        for r in radii_to_try:
+            try:
+                ntheta = 80  # poloidal resolution
+                nphi = 300   # Increase toroidal resolution
+                
+                # Get the boundary data
+                x_2D_plot, y_2D_plot, z_2D_plot, R_2D = stel.get_boundary(
+                    r=r, ntheta=ntheta, nphi=nphi, ntheta_fourier=20
+                )
+                success = True
+                break  # Break out of the loop if successful
+            except ValueError as e:
+                if "f(a) and f(b) must have different signs" in str(e):
+                    print(f"Failed with radius {r}, trying next value")
+                    continue
+                else:
+                    raise  # Re-raise if it's a different ValueError
+        
+        if not success:
+            # If all radius values fail, fall back to a simpler visualization
+            # Create a simple plot showing the axis
+            fig = plt.figure(figsize=(10, 8))
+            ax = fig.gca()
+            stel.plot_axis(show=False)
+            
+            # Generate static image for the fallback visualization
+            buffer = io.BytesIO()
+            fig.savefig(buffer, format="png", bbox_inches='tight', dpi=150)
+            plt.close(fig)
+            buffer.seek(0)
+            img_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            buffer.close()
+            
+            return {
+                "image": img_data, 
+                "interactive_data": None,
+                "error": "Could not generate 3D boundary visualization for this configuration."
+            }
+        
+        # Create a regular matplotlib figure for 3D plotting
+        fig = plt.figure(figsize=(10, 8))
+        ax = fig.add_subplot(111, projection='3d')
+        
+        # Get the magnetic field strength on the surface for coloring
+        theta1D = np.linspace(0, 2 * np.pi, ntheta)
+        phi1D = np.linspace(0, 2 * np.pi, nphi)
+        phi2D, theta2D = np.meshgrid(phi1D, theta1D)
+        Bmag = stel.B_mag(r, theta2D, phi2D)
+        
+        # Plot the surface with coloring based on magnetic field strength
+        surf = ax.plot_surface(
+            x_2D_plot, y_2D_plot, z_2D_plot,
+            facecolors=plt.cm.viridis(plt.Normalize()(Bmag)),
+            rstride=1, cstride=1, antialiased=False, linewidth=0
+        )
+        
+        # Add a colorbar for reference
+        m = plt.cm.ScalarMappable(cmap=plt.cm.viridis, norm=plt.Normalize(vmin=Bmag.min(), vmax=Bmag.max()))
+        m.set_array([])
+        cbar = plt.colorbar(m, ax=ax, shrink=0.7)
+        cbar.set_label('|B| [T]')
+        
+        # Set equal aspect ratio for the 3D plot
+        # This is important for the stellarator to look right
+        ax.set_box_aspect([1, 1, 1])
+        ax.set_axis_off()  # Hide the axes
+        
+        # Generate static image for fallback
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format="png", bbox_inches='tight', dpi=150)
+        plt.close(fig)  # Close the figure to free memory
+        buffer.seek(0)
+        img_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        buffer.close()
+        
+        # Create Plotly data for interactive visualization
+        try:
+            # Create Plotly figure directly, not converting from matplotlib
+            # which often has issues with 3D plots
+            import plotly.graph_objects as go
+            
+            colorscale = [[0, 'blue'], [0.5, 'green'], [1, 'red']]
+            
+            plotly_fig = {
+                "data": [{
+                    "type": "surface",
+                    "x": x_2D_plot.tolist(),
+                    "y": y_2D_plot.tolist(),
+                    "z": z_2D_plot.tolist(),
+                    "surfacecolor": Bmag.tolist(),
+                    "colorscale": "Viridis",
+                    "colorbar": {"title": "|B| [T]"},
+                    "showscale": True
+                }],
+                "layout": {
+                    "title": f"Stellarator Configuration {config_id}",
+                    "autosize": True,
+                    "scene": {
+                        "xaxis": {"visible": False},
+                        "yaxis": {"visible": False},
+                        "zaxis": {"visible": False},
+                        "aspectmode": "data"
+                    },
+                    "margin": {"l": 0, "r": 0, "b": 0, "t": 30},
+                    "paper_bgcolor": "rgb(240, 240, 240)"
+                }
+            }
+            
+            plot_json = json.dumps(plotly_fig)
+            return {"image": img_data, "interactive_data": plot_json}
+            
+        except Exception as e:
+            print(f"Error creating Plotly visualization: {e}")
+            return {"image": img_data, "interactive_data": None}
+        
+    except Exception as e:
+        print(f"Error generating plot: {e}")
+        return {"image": None, "interactive_data": None, "error": str(e)}
 
-    # Generate the plot and save it to a BytesIO buffer
-    plt.figure()
-    stel.plot()  # This should create a figure without requiring ax
-    buffer = io.BytesIO()
-    plt.savefig(buffer, format="png")
-    plt.close()
-
-    # Convert the buffer content to a base64 string
-    buffer.seek(0)
-    img_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
-    buffer.close()
-
-    return img_data
-
-# New API endpoint for plot data for the React app
+# Update the API endpoint
 @app.route("/api/plot/<int:config_id>", methods=["GET"])
 @cross_origin()
 def get_plot_api(config_id):
@@ -194,19 +311,11 @@ def get_plot_api(config_id):
     if not selected_config:
         return jsonify({"error": "Configuration not found"}), 404
 
-    plot_data = generate_plot(selected_config)
-    return jsonify({"plot_data": plot_data})
-
-@app.route("/api/plot/<int:config_id>")
-@cross_origin()
-def plot(config_id):
-    # Fetch the specific configuration
-    configs = fetch_configs()
-    selected_config = next(config for config in configs if config[0] == config_id)
-
-    # Generate the plot as a base64-encoded image
-    plot_data = generate_plot(selected_config)
-    return render_template("plot.html", plot_data=plot_data)
+    plot_result = generate_plot(selected_config)
+    return jsonify({
+        "plot_data": plot_result["image"],
+        "interactive_data": plot_result["interactive_data"]
+    })
 
 if __name__ == "__main__":
     app.run(debug=True)
