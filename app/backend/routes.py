@@ -10,6 +10,8 @@ import plotly
 import plotly.graph_objects as go
 import json
 import numpy as np  # Add this import
+import os
+from flask import send_file
 
 # Set the backend to 'Agg' to disable GUI
 matplotlib.use("Agg")
@@ -132,6 +134,11 @@ def fetch_configs():
     rows = cursor.fetchall()
     conn.close()
     return rows
+
+def fetch_configs_dict():
+    configs = fetch_configs()
+    # Assume config[0] is the unique configuration id
+    return {config[0]: config for config in configs}
 
 # Function to safely access attributes
 def get_attr(obj, attr_name, default=None):
@@ -301,21 +308,240 @@ def generate_plot(config):
     except Exception as e:
         print(f"Error generating plot: {e}")
         return {"image": None, "interactive_data": None, "error": str(e)}
+    
+
+def generate_grid_plot(config):
+    # Extract the config parameters
+    config_id, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar, B2c, p2, _, _ = config
+
+    # Determine the appropriate order
+    order = determine_order(config)
+
+    # Build the configuration parameters
+    config_params = {
+        "rc": [1, rc1, rc2, rc3],
+        "zs": [0, zs1, zs2, zs3],
+        "nfp": nfp,
+        "etabar": etabar,
+        "order": order,
+    }
+    if order in ("r2", "r3") and B2c is not None:
+        config_params["B2c"] = B2c
+    if order == "r3" and p2 is not None:
+        config_params["p2"] = p2
+
+    # Create the Qsc object
+    stel = Qsc(**config_params)
+    
+    try:
+        # Keep the static image for fallback (existing code)
+        fig = plt.figure(figsize=(14, 7))
+        stel.plot(newfigure=False, show=False)
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format="png", bbox_inches='tight', dpi=150)
+        plt.close(fig)
+        buffer.seek(0)
+        img_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        buffer.close()
+        
+        # Create individual Plotly figures (new approach)
+        try:
+            # List to store all individual plots
+            individual_plots = []
+            phi = stel.phi
+            
+            # Helper function to create individual plots
+            def create_individual_plot(title, data=None, y0=False):
+                if data is None:
+                    try:
+                        data = getattr(stel, title)
+                    except AttributeError:
+                        print(f"Attribute {title} not found in Qsc object")
+                        return None
+                
+                # Create a standalone figure for this diagnostic
+                fig = go.Figure()
+                fig.add_trace(
+                    go.Scatter(
+                        x=phi, 
+                        y=data,
+                        mode="lines",
+                        name=title
+                    )
+                )
+                
+                # Customize layout
+                fig.update_layout(
+                    title=f"{title} vs φ",
+                    xaxis_title="φ",
+                    yaxis_title=title,
+                    height=500,
+                    width=700,
+                    template="plotly_white"
+                )
+                
+                # Set y-axis limits if needed
+                if y0:
+                    fig.update_yaxes(rangemode="nonnegative")
+                
+                return {
+                    "name": title,
+                    "figure": fig
+                }
+            
+            # Create individual plots for all diagnostics
+            plot_names = [
+                'R0', 'Z0', 'R0p', 'Z0p', 'R0pp', 'Z0pp',
+                'R0ppp', 'Z0ppp', 'curvature', 'torsion', 'sigma', 
+                'X1c', 'Y1c', 'Y1s', 'elongation', 'L_grad_B'
+            ]
+            
+            # Add order-specific plots
+            if order != 'r1':
+                plot_names.extend([
+                    'L_grad_grad_B', 'B20', 'V1', 'V2', 'V3',
+                    'X20', 'X2c', 'X2s', 'Y20', 'Y2c', 'Y2s', 'Z20', 'Z2c', 'Z2s'
+                ])
+                
+            if order == 'r3':
+                plot_names.extend(['X3c1', 'Y3c1', 'Y3s1'])
+            
+            # Special cases with custom data
+            special_cases = {
+                '1/L_grad_B': stel.inv_L_grad_B,
+                '1/L_grad_grad_B': stel.grad_grad_B_inverse_scale_length_vs_varphi
+            }
+            
+            # Create plots for standard attributes
+            for name in plot_names:
+                plot = create_individual_plot(name, y0=(name in ['curvature', 'elongation', 'L_grad_B']))
+                if plot:
+                    individual_plots.append(plot)
+            
+            # Create plots for special cases
+            for name, data in special_cases.items():
+                plot = create_individual_plot(name, data=data, y0=(name == '1/L_grad_B'))
+                if plot:
+                    individual_plots.append(plot)
+            
+            # Add singularity radius plot for r2 and r3 orders
+            if order != 'r1':
+                data = stel.r_singularity_vs_varphi.copy()
+                data[data > 1e20] = np.nan  # Handle large values
+                plot = create_individual_plot('r_singularity', data=data, y0=True)
+                if plot:
+                    individual_plots.append(plot)
+            
+            # Convert all figures to JSON
+            plots_json = {}
+            for plot in individual_plots:
+                try:
+                    plots_json[plot["name"]] = json.dumps(
+                        plot["figure"], 
+                        cls=plotly.utils.PlotlyJSONEncoder
+                    )
+                except Exception as e:
+                    print(f"Error serializing {plot['name']}: {e}")
+            
+            return {
+                "image": img_data,  # Keep the fallback static image
+                "interactive_data": plots_json  # Dictionary of individual plots
+            }
+            
+        except Exception as e:
+            print(f"Error creating individual Plotly visualizations: {e}")
+            return {"image": img_data, "interactive_data": None}
+        
+    except Exception as e:
+        print(f"Error generating plot: {e}")
+        return {"image": None, "interactive_data": None, "error": str(e)}
 
 # Update the API endpoint
 @app.route("/api/plot/<int:config_id>", methods=["GET"])
 @cross_origin()
 def get_plot_api(config_id):
-    configs = fetch_configs()
-    selected_config = next((config for config in configs if config[0] == config_id), None)
+    print(f"Searching for boundary file for config_id={config_id}")
+    
+    configs_dict = fetch_configs_dict()
+    selected_config = configs_dict.get(config_id)
     if not selected_config:
         return jsonify({"error": "Configuration not found"}), 404
+    
+    json_path = f"precomputed/boundary/json/{config_id}.json"
+    png_path = f"precomputed/boundary/png/{config_id}.png"
+    
+    if os.path.exists(json_path) and os.path.exists(png_path):
+        print(f"File found for config_id={config_id}. Returning precomputed data.")
+        with open(json_path, "r") as f:
+            interactive_data = f.read()
+        
+        with open(png_path, "rb") as f:
+            plot_data = base64.b64encode(f.read()).decode("utf-8")
+        
+        return jsonify({
+            "plot_data": plot_data,
+            "interactive_data": interactive_data
+        })
+    else:
+        print(f"No precomputed file found for config_id={config_id}. Generating on-the-fly.")
+        plot_result = generate_plot(selected_config)
+        return jsonify({
+            "plot_data": plot_result.get("image"),
+            "interactive_data": plot_result.get("interactive_data")
+        })
 
-    plot_result = generate_plot(selected_config)
-    return jsonify({
-        "plot_data": plot_result["image"],
-        "interactive_data": plot_result["interactive_data"]
-    })
+@app.route("/api/grid/<int:config_id>", methods=["GET"])
+@cross_origin()
+def get_plot_grid_api(config_id):
+    print(f"Searching for diagnostic file for config_id={config_id}")
+    
+    # Use the O(1) dictionary lookup here too
+    configs_dict = fetch_configs_dict()
+    selected_config = configs_dict.get(config_id)
+    if not selected_config:
+        return jsonify({"error": "Configuration not found"}), 404
+    
+    png_path = f"precomputed/diagnostics/png/{config_id}.png"
+    json_dir = f"precomputed/diagnostics/json/{config_id}"
+    
+    if os.path.exists(png_path) and os.path.exists(json_dir):
+        print(f"File found for config_id={config_id}. Returning precomputed data.")
+        with open(png_path, "rb") as f:
+            plot_data = base64.b64encode(f.read()).decode("utf-8")
+        
+        # Use ThreadPoolExecutor to read JSON files in parallel
+        import concurrent.futures
+        
+        def read_json_file(filename):
+            name = filename.replace(".json", "")
+            with open(os.path.join(json_dir, filename), "r") as f:
+                return name, f.read()
+        
+        interactive_data = {}
+        json_files = [f for f in os.listdir(json_dir) if f.endswith(".json")]
+        
+        # Only use ThreadPool if there are enough files to make it worthwhile
+        if len(json_files) > 5:  
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(10, len(json_files))) as executor:
+                for name, content in executor.map(read_json_file, json_files):
+                    interactive_data[name] = content
+        else:
+            # For small number of files, sequential is fine
+            for filename in json_files:
+                name, content = read_json_file(filename)
+                interactive_data[name] = content
+        
+        return jsonify({
+            "plot_data": plot_data,
+            "interactive_data": interactive_data
+        })
+    else:
+        print(f"No precomputed file found for config_id={config_id}. Generating on-the-fly.")
+        plot_result = generate_grid_plot(selected_config)
+        return jsonify({
+            "plot_data": plot_result.get("image"),
+            "interactive_data": plot_result.get("interactive_data")
+        })
 
 if __name__ == "__main__":
     app.run(debug=True)

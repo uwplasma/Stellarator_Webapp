@@ -22,6 +22,9 @@ const ConfigList = () => {
 
   return (
     <div className="header-container">
+      <header className="tiny-header">
+        <h1>QUASAR Stellarators</h1>
+      </header>
       <h1>A Repository of Quasi-symmetric Stellarator Designs </h1>
       <div className="image-explanation" style={{ marginTop: "100px" }}>
         <div className="explanation">
@@ -38,17 +41,27 @@ const ConfigList = () => {
           </p>
         </div>
         <div className="image">
-          <img
-            src="/main.jpg"
-            alt="Rotating"
-            className="Stellarator-image"
-          />
+          <video 
+            width="400" 
+            
+            autoPlay
+            muted // Required for autoplay in most browsers
+            loop // Optional: if you want it to repeat
+            style={{ backgroundColor: "white" }}
+          >
+            <source src="/StelleratorRecording.mp4" type="video/mp4" />
+            Your browser does not support HTML5 video.
+          </video>
         </div>
       </div>
 
       <div className="table-container">
         <StellaratorTable />
       </div>
+
+      <footer className="footer">
+        <p>© 2025 QUASAR Stellarator Repository | All Rights Reserved</p>
+      </footer>
     </div>
   );
 }
