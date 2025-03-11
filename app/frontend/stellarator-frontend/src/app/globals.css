@@ -80,10 +80,10 @@ q:before, q:after {
 	content: '';
 	content: none;
 }
-table {
+/* table {
 	border-collapse: collapse;
 	border-spacing: 0;
-}
+} */
 .tiny-header {
   position: sticky;
   top: 0;
@@ -131,14 +131,14 @@ table {
 }
 
 
-.table-container {
+/* .table-container {
   margin-top: 60px;
   padding: 20px;
   background-color: #ffffff;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
-  overflow: hidden;
-}
+  border-radius: 13px;
+   overflow: hidden; 
+} */
 
 
 .footer {

@@ -25,7 +25,19 @@ const ConfigList = () => {
       <header className="tiny-header">
         <h1>QUASAR Stellarators</h1>
       </header>
-      <h1>A Repository of Quasi-symmetric Stellarator Designs </h1>
+      <h1 style={{ 
+        textAlign: 'center',
+        fontSize: '2.5rem', 
+        fontWeight: 'bold',
+        marginBottom: '30px',
+        color: '#2c3e50',
+        width: '100%',
+        maxWidth: '800px',
+        marginLeft: 'auto',
+        marginRight: 'auto'
+      }}>
+        A Repository of Quasi-symmetric Stellarator Designs
+      </h1>
       <div className="image-explanation" style={{ marginTop: "100px" }}>
         <div className="explanation">
           <p className="explanation-1">

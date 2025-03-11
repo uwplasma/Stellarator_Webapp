@@ -12,7 +12,7 @@ function StellaratorTable() {
   const [totalRows, setTotalRows] = useState(0);
   const [paginationModel, setPaginationModel] = useState({
     page: 0,
-    pageSize: 100
+    pageSize: 100  
   });
   const [filterModel, setFilterModel] = useState({
     items: []
@@ -46,26 +46,31 @@ function StellaratorTable() {
 
   // Define the columns for your data, including a new "Open" action column
   const columns = [
-    { field: "id", headerName: "ID", width: 70 },
-    { field: "rc1", headerName: "rc1", width: 130 },
-    { field: "rc2", headerName: "rc2", width: 130 },
-    { field: "rc3", headerName: "rc3", width: 130 },
-    { field: "zs1", headerName: "zs1", width: 130 },
-    { field: "zs2", headerName: "zs2", width: 130 },
-    { field: "zs3", headerName: "zs3", width: 130 },
-    { field: "nfp", headerName: "nfp", width: 130 },
-    { field: "etabar", headerName: "etabar", width: 130 },
+    { field: "id", headerName: "ID", width: 70, flex: 0.5 },
+    { field: "rc1", headerName: "rc1", width: 130, flex: 1 },
+    { field: "rc2", headerName: "rc2", width: 130, flex: 1 },
+    { field: "rc3", headerName: "rc3", width: 130, flex: 1 },
+    { field: "zs1", headerName: "zs1", width: 130, flex: 1 },
+    { field: "zs2", headerName: "zs2", width: 130, flex: 1 },
+    { field: "zs3", headerName: "zs3", width: 130, flex: 1 },
+    { field: "nfp", headerName: "nfp", width: 130, flex: 1 },
+    { field: "etabar", headerName: "etabar", width: 130, flex: 1 },
     {
       field: "open",
       headerName: "Plot",
       width: 100,
+      flex: 0.5,
       renderCell: (params) => (
-        <Link 
-          href={`/plot/${params.row.id}`}
-          className="view-button"
+        <Button 
+          variant="contained" 
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent row selection when clicking button
+            window.open(`/plot/${params.row.id}`, "_blank");
+          }}
         >
           View
-        </Link>
+        </Button>
       )
     }
   ];
@@ -74,22 +79,47 @@ function StellaratorTable() {
     <Paper sx={{ height: 500, width: "100%", marginTop: "50px" }}>
       <h2>Select a Stellarator Configuration</h2>
       <Button
-        variant="contained"
-        color="primary"
-        onClick={() => {
-          // Open each selected configuration in a new tab
-          selectedRowIds.forEach(id =>
-            window.open(`/plot/${id}`, "_blank")
-          );
-        }}
-        disabled={selectedRowIds.length === 0}
-      >
-        Open All Selected
-      </Button>
+  variant="contained"
+  color="primary"
+  onClick={() => {
+    // Store reference to first window we open
+    let firstWindow = null;
+    
+    // Function to open windows one by one
+    const openWindowsSequentially = (ids, index = 0) => {
+      if (index >= ids.length) return;
       
+      // Open the window and store reference to first one
+      const newWindow = window.open(`/plot/${ids[index]}`, "_blank");
+      if (index === 0) firstWindow = newWindow;
+      
+      // Wait before opening next window
+      setTimeout(() => {
+        openWindowsSequentially(ids, index + 1);
+      }, 800); // Larger delay to avoid browser blocking
+    };
+    
+    // Start opening windows
+    if (selectedRowIds.length > 0) {
+      // Alert user if many tabs will be opened
+      if (selectedRowIds.length > 5) {
+        if (confirm(`You're about to open ${selectedRowIds.length} tabs. Continue?`)) {
+          openWindowsSequentially(selectedRowIds);
+        }
+      } else {
+        openWindowsSequentially(selectedRowIds);
+      }
+    }
+  }}
+  disabled={selectedRowIds.length === 0}
+  sx={{ marginBottom: 2 }}
+>
+  Open All Selected ({selectedRowIds.length})
+</Button>
       <DataGrid
         rows={configs}
         columns={columns}
+        pagination
         paginationMode="server"
         filterMode="server"
         paginationModel={paginationModel}
@@ -98,18 +128,14 @@ function StellaratorTable() {
           setFilterModel(newFilter);
           setPaginationModel(prev => ({ ...prev, page: 0 }));
         }}
-        rowsPerPageOptions={[25, 50, 100]}
+        pageSizeOptions={[25, 50, 100]}
         rowCount={totalRows}
         checkboxSelection
-        selectionModel={selectedRowIds}
-        onSelectionModelChange={(newSelection) => setSelectedRowIds(newSelection)}
-        onRowClick={(params) => {
-          // Toggle selection on row click:
-          if (selectedRowIds.includes(params.id)) {
-            setSelectedRowIds(selectedRowIds.filter((id) => id !== params.id));
-          } else {
-            setSelectedRowIds([...selectedRowIds, params.id]);
-          }
+        disableRowSelectionOnClick
+        keepNonExistentRowsSelected
+        rowSelectionModel={selectedRowIds}
+        onRowSelectionModelChange={(newSelection) => {
+          setSelectedRowIds(newSelection);
         }}
         sx={{ border: 0 }}
       />
