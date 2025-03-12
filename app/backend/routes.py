@@ -39,6 +39,14 @@ def get_configs():
     search_zs3 = request.args.get("search_zs3", default="", type=str)
     search_nfp = request.args.get("search_nfp", default="", type=str)
     search_etabar = request.args.get("search_etabar", default="", type=str)
+    search_B2c = request.args.get("search_B2c", default="", type=str)
+    search_p2 = request.args.get("search_p2", default="", type=str)
+    search_iota = request.args.get("search_iota", default="", type=str)
+    search_beta= request.args.get("search_beta", default="", type=str)
+    search_DMerc_times_r2= request.args.get("search_DMerc_times_r2", default="", type=str)
+    search_min_L_grad_B= request.args.get("search_min_L_grad_B", default="", type=str)
+    search_r_singularity= request.args.get("search_r_singularity", default="", type=str)
+    search_B20_variation= request.args.get("search_B20_variation", default="", type=str)
 
     # Get filter parameters from MUI DataGrid
     filter_value = request.args.get("filter", default="", type=str)
@@ -51,7 +59,7 @@ def get_configs():
 
     # Base queries
     count_query = "SELECT COUNT(*) FROM XGStels"
-    data_query = "SELECT id, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar FROM XGStels"
+    data_query = "SELECT id, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar, B2c, p2, iota, beta, DMerc_times_r2, min_L_grad_B, r_singularity, B20_variation FROM XGStels"
     where_clauses = []
     params = []
 
@@ -80,9 +88,33 @@ def get_configs():
     if search_etabar:
         where_clauses.append("etabar LIKE ?")
         params.append(f"%{search_etabar}%")
+    if search_B2c:
+        where_clauses.append("B2c LIKE ?")
+        params.append(f"%{search_B2c}%")
+    if search_p2:
+        where_clauses.append("p2 LIKE ?")
+        params.append(f"%{search_p2}%")
+    if search_iota:
+        where_clauses.append("iota LIKE ?")
+        params.append(f"%{search_iota}%")
+    if search_beta:
+        where_clauses.append("beta LIKE ?")
+        params.append(f"%{search_beta}%")
+    if search_DMerc_times_r2:
+        where_clauses.append("DMerc_times_r2 LIKE ?")
+        params.append(f"%{search_DMerc_times_r2}%")
+    if search_min_L_grad_B:
+        where_clauses.append("min_L_grad_B LIKE ?")
+        params.append(f"%{search_min_L_grad_B}%")
+    if search_r_singularity:
+        where_clauses.append("r_singularity LIKE ?")
+        params.append(f"%{search_r_singularity}%")
+    if search_B20_variation:
+        where_clauses.append("B20_variation LIKE ?")
+        params.append(f"%{search_B20_variation}%")
 
     # Apply the DataGrid filter
-    allowed_fields = {"rc1", "rc2", "rc3", "zs1", "zs2", "zs3", "nfp", "etabar"}
+    allowed_fields = {"rc1", "rc2", "rc3", "zs1", "zs2", "zs3", "nfp", "etabar", "B2c", "p2", "iota", "beta", "DMerc_times_r2", "min_L_grad_B", "r_singularity", "B20_variation"}
     if filter_field and filter_field in allowed_fields and filter_value:
         where_clauses.append(f"{filter_field} LIKE ?")
         params.append(f"%{filter_value}%")
@@ -115,7 +147,15 @@ def get_configs():
                 "zs2": row[5],
                 "zs3": row[6],
                 "nfp": row[7],
-                "etabar": row[8]
+                "etabar": row[8],
+                "B2c": row[9],
+                "p2": row[10],
+                "iota": np.abs(row[11]),
+                "beta": row[12],
+                "DMerc_times_r2": row[13],
+                "min_L_grad_B": row[14],
+                "r_singularity": row[15],
+                "B20_variation": row[16]
             } for row in rows
         ],
         "totalPages": totalPages,

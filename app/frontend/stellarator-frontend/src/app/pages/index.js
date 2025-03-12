@@ -17,19 +17,28 @@ const ConfigList = () => {
 
   return (
     <div className="header-container">
-      <h1>A Repository of Quasi-symmetric Stellarator Designs </h1>
-      <div className="image-explanation" style={{ marginTop: "100px" }}>
+      <h1>A Repository of Quasi-symmetric Stellarator Designs       </h1>
+      <div className="image-explanation" style={{ marginTop: "20px" }}>
         <div className="explanation">
-          <p className="explanation-1">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla vehicula auctor metus,
-            The QUASAR repository houses a vast collection of over 370,000 innovative, curl-free stellarator
-            configurations, each paired with optimized coil sets designed to achieve volume quasi-symmetry.
-          </p>
+            <p className="explanation-1">
+              You can visit our group's website{" "}
+              <a href="https://rogerio.physics.wisc.edu" target="_blank" rel="noopener noreferrer">
+               here.
+              </a>
+            </p>
+
+            <p className="explanation-1">
+              All of our codes are open source and available {" "}
+              <a href="https://github.com/uwplasma" target="_blank" rel="noopener noreferrer">
+               here.
+              </a>
+            </p>
           <p className="explanation-2">
-            With the "Launch Navigator" feature, you can explore the QUASAR database effortlessly. Identify
-            configurations that capture your interest and dive deeper with a single click to access detailed views.
-            Each record offers in-depth information, including interactive 3D models, magnetic field configurations,
-            and Poincaré plots for comprehensive analysis.
+            Please explore our database below. It contains a list of quasisymmetric stellarators created using the near-axis expansion.
+            The database and its use to develop a machine learning model are explained in our publication {" "}
+              <a href="https://arxiv.org/abs/2409.00564" target="_blank" rel="noopener noreferrer">
+               here.
+              </a>
           </p>
         </div>
         <div className="image">
