@@ -9,9 +9,8 @@ import base64
 import plotly
 import plotly.graph_objects as go
 import json
-import numpy as np  # Add this import
-import os
-from flask import send_file
+import numpy as np
+from time import time
 
 # Set the backend to 'Agg' to disable GUI
 matplotlib.use("Agg")
@@ -122,7 +121,8 @@ def get_configs():
         "totalPages": totalPages,
         "count": count
     }
-    return jsonify(data)
+    jsonified_data = jsonify(data)
+    return jsonified_data
 
 # Function to fetch configurations from the SQLite database
 def fetch_configs():
@@ -135,11 +135,6 @@ def fetch_configs():
     conn.close()
     return rows
 
-def fetch_configs_dict():
-    configs = fetch_configs()
-    # Assume config[0] is the unique configuration id
-    return {config[0]: config for config in configs}
-
 # Function to safely access attributes
 def get_attr(obj, attr_name, default=None):
     return getattr(obj, attr_name, default)
@@ -148,38 +143,14 @@ def get_attr(obj, attr_name, default=None):
 def determine_order(config):
     _, _, _, _, _, _, _, _, _, B2c, p2, _, _ = config  # Ignore extra columns
 
-    if B2c is None and p2 is None:
+    if B2c is None:
         return "r1"
-    elif B2c is not None and p2 is None:
-        return "r2"
-    elif B2c is not None and p2 is not None:
+    elif B2c is not None:
         return "r3"
     return "r1"  # Default to r1 if detection fails
 
 # Modified function to generate plot data for interactive visualization
-def generate_plot(config):
-    # Extract the config parameters
-    config_id, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar, B2c, p2, _, _ = config
-
-    # Determine the appropriate order
-    order = determine_order(config)
-
-    # Build the configuration parameters
-    config_params = {
-        "rc": [1, rc1, rc2, rc3],
-        "zs": [0, zs1, zs2, zs3],
-        "nfp": nfp,
-        "etabar": etabar,
-        "order": order,
-    }
-    if order in ("r2", "r3") and B2c is not None:
-        config_params["B2c"] = B2c
-    if order == "r3" and p2 is not None:
-        config_params["p2"] = p2
-
-    # Create the Qsc object
-    stel = Qsc(**config_params)
-    
+def generate_plot(stel, config_id):
     try:
         # --------------------------------------------------
         # Instead of using stel.plot(), use get_boundary() to get the 3D boundary data
@@ -192,13 +163,19 @@ def generate_plot(config):
         
         for r in radii_to_try:
             try:
-                ntheta = 80  # poloidal resolution
-                nphi = 300   # Increase toroidal resolution
+                ntheta = 30  # Poloidal resolution
+                nphi = stel.nfp*2*20   # Toroidal resolution
+                ntheta_fourier = 30  # Fourier resolution
+                mpol = 6  # Number of poloidal modes
+                ntor = 6  # Number of toroidal modes
                 
                 # Get the boundary data
+                start_time = time()
                 x_2D_plot, y_2D_plot, z_2D_plot, R_2D = stel.get_boundary(
-                    r=r, ntheta=ntheta, nphi=nphi, ntheta_fourier=20
+                    r=r, ntheta=ntheta, nphi=nphi, ntheta_fourier=ntheta_fourier,
+                    mpol=mpol, ntor=ntor
                 )
+                print(f"Getting boundary data took {time() - start_time:.2f} seconds")
                 success = True
                 break  # Break out of the loop if successful
             except ValueError as e:
@@ -213,7 +190,9 @@ def generate_plot(config):
             # Create a simple plot showing the axis
             fig = plt.figure(figsize=(10, 8))
             ax = fig.gca()
+            start_time = time()
             stel.plot_axis(show=False)
+            print(f"Plotting axis took {time() - start_time:.2f} seconds")
             
             # Generate static image for the fallback visualization
             buffer = io.BytesIO()
@@ -240,11 +219,13 @@ def generate_plot(config):
         Bmag = stel.B_mag(r, theta2D, phi2D)
         
         # Plot the surface with coloring based on magnetic field strength
+        start_time = time()
         surf = ax.plot_surface(
             x_2D_plot, y_2D_plot, z_2D_plot,
             facecolors=plt.cm.viridis(plt.Normalize()(Bmag)),
             rstride=1, cstride=1, antialiased=False, linewidth=0
         )
+        print(f"Plotting the surface took {time() - start_time:.2f} seconds")
         
         # Add a colorbar for reference
         m = plt.cm.ScalarMappable(cmap=plt.cm.viridis, norm=plt.Normalize(vmin=Bmag.min(), vmax=Bmag.max()))
@@ -269,10 +250,7 @@ def generate_plot(config):
         try:
             # Create Plotly figure directly, not converting from matplotlib
             # which often has issues with 3D plots
-            import plotly.graph_objects as go
-            
-            colorscale = [[0, 'blue'], [0.5, 'green'], [1, 'red']]
-            
+            start_time = time()
             plotly_fig = {
                 "data": [{
                     "type": "surface",
@@ -297,7 +275,6 @@ def generate_plot(config):
                     "paper_bgcolor": "rgb(240, 240, 240)"
                 }
             }
-            
             plot_json = json.dumps(plotly_fig)
             return {"image": img_data, "interactive_data": plot_json}
             
@@ -310,238 +287,179 @@ def generate_plot(config):
         return {"image": None, "interactive_data": None, "error": str(e)}
     
 
-def generate_grid_plot(config):
-    # Extract the config parameters
-    config_id, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar, B2c, p2, _, _ = config
-
-    # Determine the appropriate order
-    order = determine_order(config)
-
-    # Build the configuration parameters
-    config_params = {
-        "rc": [1, rc1, rc2, rc3],
-        "zs": [0, zs1, zs2, zs3],
-        "nfp": nfp,
-        "etabar": etabar,
-        "order": order,
-    }
-    if order in ("r2", "r3") and B2c is not None:
-        config_params["B2c"] = B2c
-    if order == "r3" and p2 is not None:
-        config_params["p2"] = p2
-
-    # Create the Qsc object
-    stel = Qsc(**config_params)
-    
+def generate_grid_plot(stel):
+    order = stel.order
+    # Create individual Plotly figures (new approach)
     try:
-        # Keep the static image for fallback (existing code)
-        fig = plt.figure(figsize=(14, 7))
-        stel.plot(newfigure=False, show=False)
-        buffer = io.BytesIO()
-        fig.savefig(buffer, format="png", bbox_inches='tight', dpi=150)
-        plt.close(fig)
-        buffer.seek(0)
-        img_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
-        buffer.close()
+        # List to store all individual plots
+        individual_plots = []
+        phi = stel.phi
         
-        # Create individual Plotly figures (new approach)
-        try:
-            # List to store all individual plots
-            individual_plots = []
-            phi = stel.phi
-            
-            # Helper function to create individual plots
-            def create_individual_plot(title, data=None, y0=False):
-                if data is None:
-                    try:
-                        data = getattr(stel, title)
-                    except AttributeError:
-                        print(f"Attribute {title} not found in Qsc object")
-                        return None
-                
-                # Create a standalone figure for this diagnostic
-                fig = go.Figure()
-                fig.add_trace(
-                    go.Scatter(
-                        x=phi, 
-                        y=data,
-                        mode="lines",
-                        name=title
-                    )
-                )
-                
-                # Customize layout
-                fig.update_layout(
-                    title=f"{title} vs φ",
-                    xaxis_title="φ",
-                    yaxis_title=title,
-                    height=500,
-                    width=700,
-                    template="plotly_white"
-                )
-                
-                # Set y-axis limits if needed
-                if y0:
-                    fig.update_yaxes(rangemode="nonnegative")
-                
-                return {
-                    "name": title,
-                    "figure": fig
-                }
-            
-            # Create individual plots for all diagnostics
-            plot_names = [
-                'R0', 'Z0', 'R0p', 'Z0p', 'R0pp', 'Z0pp',
-                'R0ppp', 'Z0ppp', 'curvature', 'torsion', 'sigma', 
-                'X1c', 'Y1c', 'Y1s', 'elongation', 'L_grad_B'
-            ]
-            
-            # Add order-specific plots
-            if order != 'r1':
-                plot_names.extend([
-                    'L_grad_grad_B', 'B20', 'V1', 'V2', 'V3',
-                    'X20', 'X2c', 'X2s', 'Y20', 'Y2c', 'Y2s', 'Z20', 'Z2c', 'Z2s'
-                ])
-                
-            if order == 'r3':
-                plot_names.extend(['X3c1', 'Y3c1', 'Y3s1'])
-            
-            # Special cases with custom data
-            special_cases = {
-                '1/L_grad_B': stel.inv_L_grad_B,
-                '1/L_grad_grad_B': stel.grad_grad_B_inverse_scale_length_vs_varphi
-            }
-            
-            # Create plots for standard attributes
-            for name in plot_names:
-                plot = create_individual_plot(name, y0=(name in ['curvature', 'elongation', 'L_grad_B']))
-                if plot:
-                    individual_plots.append(plot)
-            
-            # Create plots for special cases
-            for name, data in special_cases.items():
-                plot = create_individual_plot(name, data=data, y0=(name == '1/L_grad_B'))
-                if plot:
-                    individual_plots.append(plot)
-            
-            # Add singularity radius plot for r2 and r3 orders
-            if order != 'r1':
-                data = stel.r_singularity_vs_varphi.copy()
-                data[data > 1e20] = np.nan  # Handle large values
-                plot = create_individual_plot('r_singularity', data=data, y0=True)
-                if plot:
-                    individual_plots.append(plot)
-            
-            # Convert all figures to JSON
-            plots_json = {}
-            for plot in individual_plots:
+        # Helper function to create individual plots
+        def create_individual_plot(title, data=None, y0=False):
+            if data is None:
                 try:
-                    plots_json[plot["name"]] = json.dumps(
-                        plot["figure"], 
-                        cls=plotly.utils.PlotlyJSONEncoder
-                    )
-                except Exception as e:
-                    print(f"Error serializing {plot['name']}: {e}")
+                    data = getattr(stel, title)
+                except AttributeError:
+                    print(f"Attribute {title} not found in Qsc object")
+                    return None
             
+            # Create a standalone figure for this diagnostic
+            fig = go.Figure()
+            fig.add_trace(
+                go.Scatter(
+                    x=phi, 
+                    y=data,
+                    mode="lines",
+                    name=title
+                )
+            )
+            
+            # Customize layout
+            fig.update_layout(
+                title=f"{title} vs φ",
+                xaxis_title="φ",
+                yaxis_title=title,
+                height=500,
+                width=700,
+                template="plotly_white"
+            )
+            
+            # Set y-axis limits if needed
+            if y0:
+                fig.update_yaxes(rangemode="nonnegative")
             return {
-                "image": img_data,  # Keep the fallback static image
-                "interactive_data": plots_json  # Dictionary of individual plots
+                "name": title,
+                "figure": fig
             }
+        
+        # Create individual plots for all diagnostics
+        plot_names = [
+            'R0', 'Z0', 'R0p', 'Z0p', 'R0pp', 'Z0pp',
+            'R0ppp', 'Z0ppp', 'curvature', 'torsion', 'sigma', 
+            'X1c', 'Y1c', 'Y1s', 'elongation', 'L_grad_B'
+        ]
+        
+        # Add order-specific plots
+        if order != 'r1':
+            plot_names.extend([
+                'L_grad_grad_B', 'B20', 'V1', 'V2', 'V3',
+                'X20', 'X2c', 'X2s', 'Y20', 'Y2c', 'Y2s', 'Z20', 'Z2c', 'Z2s'
+            ])
             
-        except Exception as e:
-            print(f"Error creating individual Plotly visualizations: {e}")
-            return {"image": img_data, "interactive_data": None}
+        if order == 'r3':
+            plot_names.extend(['X3c1', 'Y3c1', 'Y3s1'])
+        
+        # Special cases with custom data
+        special_cases = {
+            '1/L_grad_B': stel.inv_L_grad_B,
+            '1/L_grad_grad_B': stel.grad_grad_B_inverse_scale_length_vs_varphi
+        }
+        
+        # Create plots for standard attributes and special cases
+        all_plots = [(name, None, name in ['curvature', 'elongation', 'L_grad_B']) for name in plot_names] + \
+                [(name, data, name == '1/L_grad_B') for name, data in special_cases.items()]
+
+        for name, data, y0 in all_plots:
+            plot = create_individual_plot(name, data=data, y0=y0)
+            if plot: individual_plots.append(plot)
+        
+        # Add singularity radius plot for r2 and r3 orders
+        if order != 'r1':
+            data = stel.r_singularity_vs_varphi.copy()
+            data[data > 1e20] = np.nan  # Handle large values
+            plot = create_individual_plot('r_singularity', data=data, y0=True)
+            if plot:
+                individual_plots.append(plot)
+        
+        # Convert all figures to JSON
+        plots_json = {}
+        for plot in individual_plots:
+            try:
+                plots_json[plot["name"]] = json.dumps(
+                    plot["figure"], 
+                    cls=plotly.utils.PlotlyJSONEncoder
+                )
+            except Exception as e:
+                print(f"Error serializing {plot['name']}: {e}")
+        
+        return {
+            "image": None,  # Keep the fallback static image
+            "interactive_data": plots_json  # Dictionary of individual plots
+        }
         
     except Exception as e:
-        print(f"Error generating plot: {e}")
-        return {"image": None, "interactive_data": None, "error": str(e)}
+        print(f"Error creating individual Plotly visualizations: {e}")
+        
+        try:
+            # Keep the static image for fallback (existing code)
+            fig = plt.figure(figsize=(14, 7))
+            stel.plot(newfigure=False, show=False)
+            buffer = io.BytesIO()
+            fig.savefig(buffer, format="png", bbox_inches='tight', dpi=150)
+            plt.close(fig)
+            buffer.seek(0)
+            img_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            buffer.close()
+        except Exception as e:
+            print(f"Error generating plot: {e}")
+            return {"image": None, "interactive_data": None, "error": str(e)}
+        return {"image": img_data, "interactive_data": None}
+
+def get_stel_from_config(config):
+    _, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar, B2c, p2, _, _ = config
+    order = determine_order(config)
+    config_params = {"rc": [1, rc1, rc2, rc3],"zs": [0, zs1, zs2, zs3],
+        "nfp": nfp,"etabar": etabar,"order": order,"nphi": 71,}
+    if B2c is not None:
+        config_params["B2c"] = B2c
+    if p2 is not None:
+        config_params["p2"] = p2
+    start_time = time()
+    stel = Qsc(**config_params)
+    print(f"Creating Qsc object took {time() - start_time:.2f} seconds")
+    return stel
 
 # Update the API endpoint
 @app.route("/api/plot/<int:config_id>", methods=["GET"])
 @cross_origin()
 def get_plot_api(config_id):
-    print(f"Searching for boundary file for config_id={config_id}")
-    
-    configs_dict = fetch_configs_dict()
-    selected_config = configs_dict.get(config_id)
+    conn = connect_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar, B2c, p2, axis_length, iota FROM XGStels WHERE id = ?", (config_id,)
+    )
+    selected_config = cursor.fetchone()
+    conn.close()
     if not selected_config:
         return jsonify({"error": "Configuration not found"}), 404
-    
-    json_path = f"precomputed/boundary/json/{config_id}.json"
-    png_path = f"precomputed/boundary/png/{config_id}.png"
-    
-    if os.path.exists(json_path) and os.path.exists(png_path):
-        print(f"File found for config_id={config_id}. Returning precomputed data.")
-        with open(json_path, "r") as f:
-            interactive_data = f.read()
-        
-        with open(png_path, "rb") as f:
-            plot_data = base64.b64encode(f.read()).decode("utf-8")
-        
-        return jsonify({
-            "plot_data": plot_data,
-            "interactive_data": interactive_data
-        })
-    else:
-        print(f"No precomputed file found for config_id={config_id}. Generating on-the-fly.")
-        plot_result = generate_plot(selected_config)
-        return jsonify({
-            "plot_data": plot_result.get("image"),
-            "interactive_data": plot_result.get("interactive_data")
-        })
 
+    start_time = time()
+    plot_result = generate_plot(get_stel_from_config(selected_config), selected_config)
+    print(f"Generating plot took {time() - start_time:.2f} seconds")
+    return jsonify({
+        "plot_data": plot_result["image"],
+        "interactive_data": plot_result["interactive_data"]
+    })
 @app.route("/api/grid/<int:config_id>", methods=["GET"])
 @cross_origin()
 def get_plot_grid_api(config_id):
-    print(f"Searching for diagnostic file for config_id={config_id}")
-    
-    # Use the O(1) dictionary lookup here too
-    configs_dict = fetch_configs_dict()
-    selected_config = configs_dict.get(config_id)
+    conn = connect_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar, B2c, p2, axis_length, iota FROM XGStels WHERE id = ?", (config_id,)
+    )
+    selected_config = cursor.fetchone()
+    conn.close()
     if not selected_config:
         return jsonify({"error": "Configuration not found"}), 404
-    
-    png_path = f"precomputed/diagnostics/png/{config_id}.png"
-    json_dir = f"precomputed/diagnostics/json/{config_id}"
-    
-    if os.path.exists(png_path) and os.path.exists(json_dir):
-        print(f"File found for config_id={config_id}. Returning precomputed data.")
-        with open(png_path, "rb") as f:
-            plot_data = base64.b64encode(f.read()).decode("utf-8")
-        
-        # Use ThreadPoolExecutor to read JSON files in parallel
-        import concurrent.futures
-        
-        def read_json_file(filename):
-            name = filename.replace(".json", "")
-            with open(os.path.join(json_dir, filename), "r") as f:
-                return name, f.read()
-        
-        interactive_data = {}
-        json_files = [f for f in os.listdir(json_dir) if f.endswith(".json")]
-        
-        # Only use ThreadPool if there are enough files to make it worthwhile
-        if len(json_files) > 5:  
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(10, len(json_files))) as executor:
-                for name, content in executor.map(read_json_file, json_files):
-                    interactive_data[name] = content
-        else:
-            # For small number of files, sequential is fine
-            for filename in json_files:
-                name, content = read_json_file(filename)
-                interactive_data[name] = content
-        
-        return jsonify({
-            "plot_data": plot_data,
-            "interactive_data": interactive_data
-        })
-    else:
-        print(f"No precomputed file found for config_id={config_id}. Generating on-the-fly.")
-        plot_result = generate_grid_plot(selected_config)
-        return jsonify({
-            "plot_data": plot_result.get("image"),
-            "interactive_data": plot_result.get("interactive_data")
-        })
+    start_time = time()
+    plot_result = generate_grid_plot(get_stel_from_config(selected_config))
+    print(f"Generating grid plot took {time() - start_time:.2f} seconds")
+    return jsonify({
+        "plot_data": plot_result["image"],
+        "interactive_data": plot_result["interactive_data"]
+    })
 
 if __name__ == "__main__":
     app.run(debug=True)
