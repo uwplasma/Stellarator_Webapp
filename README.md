@@ -36,15 +36,16 @@ This project is a full-stack web application that displays and plots quasi-symme
 
 ## Usage
 
-### Checkout the Correct Git Branch
-
-Before running the application, ensure you are on the `frontend` branch when inside the project directory:
-
-```sh
-git checkout frontend
-```
+It would be beneficial to have a venv folder to store the Python dependencies
 
 ### Running the Backend
+Ensure You are in the Stellarator_Webapp directory
+
+Go to the Backend Directory:
+
+```sh
+cd app/backend
+```
 
 Install dependencies:
 
@@ -61,11 +62,23 @@ python3 routes.py
 The backend will be available at [http://127.0.0.1:5000/](http://127.0.0.1:5000/).
 
 ### Running the Frontend
+Ensure You are in the Stellarator_Webapp directory
+
+Go To the reactFrontend Directory:
+```sh
+cd app/frontend/reactfrontend
+```
+
 
 Install dependencies:
 
 ```sh
 npm install
+```
+
+Fix Vulnerabilities:
+```sh
+npm audit --production
 ```
 
 Start the React development server:
