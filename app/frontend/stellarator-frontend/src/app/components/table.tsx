@@ -6,6 +6,7 @@ import { DataGrid } from "@mui/x-data-grid";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
 import Link from "next/link";
+import { GridFilterModel, GridRowId } from "@mui/x-data-grid";
 
 function StellaratorTable() {
   const [configs, setConfigs] = useState([]);
@@ -14,11 +15,12 @@ function StellaratorTable() {
     page: 0,
     pageSize: 100  
   });
-  const [filterModel, setFilterModel] = useState({
+  
+  const [filterModel, setFilterModel] = useState<GridFilterModel>({
     items: []
   });
   // State to store the selected rows' IDs
-  const [selectedRowIds, setSelectedRowIds] = useState([]);
+  const [selectedRowIds, setSelectedRowIds] = useState<GridRowId[]>([]);
 
   useEffect(() => {
     const { page, pageSize } = paginationModel;
@@ -26,7 +28,7 @@ function StellaratorTable() {
     let filterField = "";
     if (filterModel.items.length > 0) {
       filterValue = filterModel.items[0].value || "";
-      filterField = filterModel.items[0].columnField || "";
+      filterField = filterModel.items[0].field || "";
     }
     axios
       .get("http://127.0.0.1:5000/api/configs", {
@@ -91,7 +93,7 @@ function StellaratorTable() {
   color="primary"
   onClick={() => {
     // Store reference to first window we open
-    let firstWindow = null;
+    let firstWindow: Window | null = null;
     
     // Function to open windows one by one
     const openWindowsSequentially = (ids, index = 0) => {
@@ -143,7 +145,7 @@ function StellaratorTable() {
         keepNonExistentRowsSelected
         rowSelectionModel={selectedRowIds}
         onRowSelectionModelChange={(newSelection) => {
-          setSelectedRowIds(newSelection);
+          setSelectedRowIds(newSelection as GridRowId[]);
         }}
         sx={{ border: 0 }}
       />
