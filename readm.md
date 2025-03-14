@@ -20,7 +20,7 @@ How It Works
 3. **DataTable Integration**: Interactive table powered by DataTables to view configuration details.
 Usage
 1. Start the Flask app using `python routes.py`.
-2. Access the homepage at `http://127.0.0.1:5001/`.
+2. Access the homepage at `http://127.0.0.1:5000/`.
 3. Select a configuration to view the corresponding plot.
 Detailed Explanation of routes.py
 Overview

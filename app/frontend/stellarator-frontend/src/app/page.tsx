@@ -8,7 +8,7 @@ const ConfigList = () => {
   const [configs, setConfigs] = useState([]);
 
   useEffect(() => {
-    axios.get("http://127.0.0.1:5001/api/configs")
+    axios.get("http://127.0.0.1:5000/api/configs")
       .then(response => {
         console.log("API Response:", response.data);
         setConfigs(response.data);
