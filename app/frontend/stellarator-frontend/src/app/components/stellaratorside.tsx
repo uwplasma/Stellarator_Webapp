@@ -50,7 +50,7 @@ function StellaratorTable() {
     }).toString();
 
     axios
-      .get(`http://127.0.0.1:5000/api/configs?${queryParams}`)
+      .get(`http://127.0.0.1:5001/api/configs?${queryParams}`)
       .then(response => {
         setConfigs(response.data.configs || []);
         setTotalPages(response.data.totalPages || 1);
