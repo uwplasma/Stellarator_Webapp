@@ -56,8 +56,8 @@ export default function PlotView({ configId }: PlotViewProps) {
       setLoading(true);
       
       // Set up API requests
-      const boundaryRequest = axios.get(`http://127.0.0.1:5000/api/plot/${configId}`);
-      const gridRequest = axios.get(`http://127.0.0.1:5000/api/grid/${configId}`);
+      const boundaryRequest = axios.get(`https://stellarator.physics.wisc.edu/backend/api/plot/${configId}`);
+      const gridRequest = axios.get(`https://stellarator.physics.wisc.edu/backend/api/grid/${configId}`);
       
       // Execute both requests in parallel
       Promise.all([boundaryRequest, gridRequest])

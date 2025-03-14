@@ -8,7 +8,7 @@ const ConfigList = () => {
   const [configs, setConfigs] = useState([]);
 
   useEffect(() => {
-    axios.get("http://127.0.0.1:5000/api/configs")
+    axios.get("https://stellarator.physics.wisc.edu/backend/api/configs")
       .then(response => {
         console.log("API Response:", response.data);
         setConfigs(response.data);
