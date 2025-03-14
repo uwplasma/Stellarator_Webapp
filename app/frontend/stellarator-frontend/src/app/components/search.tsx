@@ -1,7 +1,12 @@
 import React from "react";
 import TextField from "@mui/material/TextField";
 
-function Search({ label, onChange }) {
+interface SearchProps {
+  label: string;
+  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+function Search({ label, onChange }: SearchProps) {
   return (
     <div className="search">
       <TextField

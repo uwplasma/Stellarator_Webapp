@@ -6,7 +6,18 @@ import { TableContainer, TableHead, TableCell, TableRow, Table, TableBody, Paper
 // import "./table.css"; 
 
 function StellaratorTable() {
-  const [configs, setConfigs] = useState([]);
+  interface Config {
+    id: number;
+    rc1: string;
+    rc2: string;
+    rc3: string;
+    zs1: string;
+    zs2: string;
+    zs3: string;
+    nfp: string;
+    etabar: string;
+  }
+  const [configs, setConfigs] = useState<Config[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchQueries, setSearchQueries] = useState({
@@ -26,8 +37,8 @@ function StellaratorTable() {
   useEffect(() => {
     // Fetch only 500 records at a time using query params (example: ?page=1&limit=500&search=term)
     const queryParams = new URLSearchParams({
-      page: currentPage,
-      limit: pageSize,
+      page: currentPage.toString(),
+      limit: pageSize.toString(),
       search_rc1: searchQueries.rc1,
       search_rc2: searchQueries.rc2,
       search_rc3: searchQueries.rc3,
@@ -81,14 +92,14 @@ function StellaratorTable() {
           <TableHead>
             <TableRow>
               <TableCell>Actions</TableCell>
-              <TableCell><Search label=" rc1" onChange={handleSearchChange("rc1")} className="rc1-search" /></TableCell>
-              <TableCell><Search label=" rc2" onChange={handleSearchChange("rc2")} className="rc2-search" /></TableCell>
-              <TableCell><Search label=" rc3" onChange={handleSearchChange("rc3")} className="rc3-search" /></TableCell>
-              <TableCell><Search label=" zs1" onChange={handleSearchChange("zs1")} className="zs1-search" /></TableCell>
-              <TableCell><Search label=" zs2" onChange={handleSearchChange("zs2")} className="zs2-search" /></TableCell>
-              <TableCell><Search label=" zs3" onChange={handleSearchChange("zs3")} className="zs3-search" /></TableCell>
-              <TableCell><Search label=" nfp" onChange={handleSearchChange("nfp")} className="nfp-search" /></TableCell>
-              <TableCell><Search label=" etabar" onChange={handleSearchChange("etabar")} className="etabar-search" /></TableCell>
+              <TableCell><Search label=" rc1" onChange={handleSearchChange("rc1")} /></TableCell>
+              <TableCell><Search label=" rc2" onChange={handleSearchChange("rc2")} /></TableCell>
+              <TableCell><Search label=" rc3" onChange={handleSearchChange("rc3")} /></TableCell>
+              <TableCell><Search label=" zs1" onChange={handleSearchChange("zs1")} /></TableCell>
+              <TableCell><Search label=" zs2" onChange={handleSearchChange("zs2")} /></TableCell>
+              <TableCell><Search label=" zs3" onChange={handleSearchChange("zs3")} /></TableCell>
+              <TableCell><Search label=" nfp" onChange={handleSearchChange("nfp")} /></TableCell>
+              <TableCell><Search label=" etabar" onChange={handleSearchChange("etabar")} /></TableCell>
             </TableRow>
             <TableRow>
               <TableCell>Actions</TableCell>
