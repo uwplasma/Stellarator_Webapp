@@ -61,10 +61,10 @@ function StellaratorTable() {
     { field: "p2", headerName: "p2", width: 130, flex: 1 },
     { field: "iota", headerName: "iota", width: 130, flex: 1 },
     { field: "beta", headerName: "beta", width: 130, flex: 1 },
-    { field: "DMerc_times_r2", headerName: "DMerc_times_r2", width: 130, flex: 1 },
-    { field: "min_L_grad_B", headerName: "min_L_grad_B", width: 130, flex: 1 },
+    // { field: "DMerc_times_r2", headerName: "DMerc_times_r2", width: 130, flex: 1 },
+    { field: "min_L_grad_B", headerName: "L_grad_B", width: 130, flex: 1 },
     { field: "r_singularity", headerName: "r_singularity", width: 130, flex: 1 },
-    { field: "B20_variation", headerName: "B20_variation", width: 130, flex: 1 },
+    // { field: "B20_variation", headerName: "B20_variation", width: 130, flex: 1 },
     {
       field: "open",
       headerName: "Plot",
