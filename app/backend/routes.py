@@ -1,7 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_cors import CORS, cross_origin
 import sqlite3
-from qsc import Qsc
+# from qsc import Qsc
+from essos.fields import near_axis as Qsc
 import matplotlib
 import matplotlib.pyplot as plt
 import io
@@ -17,6 +18,12 @@ matplotlib.use("Agg")
 
 app = Flask(__name__)
 CORS(app)
+
+stel_nfp1 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001], etabar=0.31, nphi=31, nfp=1)
+stel_nfp2 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001], etabar=0.31, nphi=31, nfp=2)
+stel_nfp3 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001], etabar=0.31, nphi=31, nfp=3)
+stel_nfp4 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001], etabar=0.31, nphi=31, nfp=4)
+stel_nfp5 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001], etabar=0.31, nphi=31, nfp=5)
 
 # Connect to SQLite database
 def connect_db():
@@ -183,11 +190,12 @@ def get_attr(obj, attr_name, default=None):
 def determine_order(config):
     _, _, _, _, _, _, _, _, _, B2c, p2, _, _ = config  # Ignore extra columns
 
-    if B2c is None:
-        return "r1"
-    elif B2c is not None:
-        return "r3"
-    return "r1"  # Default to r1 if detection fails
+    # if B2c is None:
+    #     return "r1"
+    # elif B2c is not None:
+    #     return "r3"
+    # return "r1"  # Default to r1 if detection fails
+    return "r1"
 
 # Modified function to generate plot data for interactive visualization
 def generate_plot(stel, config_id):
@@ -205,9 +213,9 @@ def generate_plot(stel, config_id):
             try:
                 ntheta = 30  # Poloidal resolution
                 nphi = stel.nfp*2*20   # Toroidal resolution
-                ntheta_fourier = 30  # Fourier resolution
-                mpol = 6  # Number of poloidal modes
-                ntor = 6  # Number of toroidal modes
+                ntheta_fourier = 20  # Fourier resolution
+                mpol = 5  # Number of poloidal modes
+                ntor = 5  # Number of toroidal modes
                 
                 # Get the boundary data
                 start_time = time()
@@ -375,9 +383,12 @@ def generate_grid_plot(stel):
         
         # Create individual plots for all diagnostics
         plot_names = [
-            'R0', 'Z0', 'R0p', 'Z0p', 'R0pp', 'Z0pp',
-            'R0ppp', 'Z0ppp', 'curvature', 'torsion', 'sigma', 
-            'X1c', 'Y1c', 'Y1s', 'elongation', 'L_grad_B'
+            'R0', 'Z0',
+            # 'R0p', 'Z0p', 'R0pp', 'Z0pp',
+            # 'R0ppp', 'Z0ppp',
+            'curvature', 'torsion', 'sigma', 
+            # 'X1c', 'Y1c', 'Y1s',
+            'elongation', 'L_grad_B'
         ]
         
         # Add order-specific plots
@@ -393,7 +404,7 @@ def generate_grid_plot(stel):
         # Special cases with custom data
         special_cases = {
             '1/L_grad_B': stel.inv_L_grad_B,
-            '1/L_grad_grad_B': stel.grad_grad_B_inverse_scale_length_vs_varphi
+            # '1/L_grad_grad_B': stel.grad_grad_B_inverse_scale_length_vs_varphi
         }
         
         # Create plots for standard attributes and special cases
@@ -456,7 +467,13 @@ def get_stel_from_config(config):
     if p2 is not None:
         config_params["p2"] = p2
     start_time = time()
-    stel = Qsc(**config_params)
+    if   nfp == 1: stel = stel_nfp1
+    elif nfp == 2: stel = stel_nfp2
+    elif nfp == 3: stel = stel_nfp3
+    elif nfp == 4: stel = stel_nfp4
+    elif nfp == 5: stel = stel_nfp5
+    stel.x = [1, rc1, rc2, rc3, 0, zs1, zs2, zs3, etabar]
+    # stel = Qsc(**config_params)
     print(f"Creating Qsc object took {time() - start_time:.2f} seconds")
     return stel
 
