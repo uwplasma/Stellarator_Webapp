@@ -58,7 +58,7 @@ function StellaratorTable() {
     { field: "nfp", headerName: "nfp", width: 50, flex: 1 },
     { field: "etabar", headerName: "etabar", width: 130, flex: 1 },
     { field: "B2c", headerName: "B2c", width: 130, flex: 1 },
-    { field: "p2", headerName: "p2", width: 130, flex: 1 },
+    // { field: "p2", headerName: "p2", width: 130, flex: 1 },
     { field: "iota", headerName: "iota", width: 130, flex: 1 },
     { field: "beta", headerName: "beta", width: 130, flex: 1 },
     // { field: "DMerc_times_r2", headerName: "DMerc_times_r2", width: 130, flex: 1 },

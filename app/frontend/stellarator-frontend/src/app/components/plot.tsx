@@ -12,7 +12,7 @@ interface Camera {
 }
 
 // Dynamically import react-plotly.js with SSR disabled
-const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
+const Plot = dynamic(() => import("react-plotly.js"), { ssr: false }) as any;
 
 interface PlotViewProps {
   configId: string;
