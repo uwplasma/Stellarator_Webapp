@@ -5,8 +5,14 @@ import axios from "axios";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
+interface Camera {
+  eye: { x: number; y: number; z: number };
+  center: { x: number; y: number; z: number };
+  up: { x: number; y: number; z: number };
+}
+
 // Dynamically import react-plotly.js with SSR disabled
-const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
+const Plot = dynamic(() => import("react-plotly.js"), { ssr: false }) as any;
 
 interface PlotViewProps {
   configId: string;
@@ -144,7 +150,7 @@ export default function PlotView({ configId }: PlotViewProps) {
         }
       };
 
-      setInteractivePlot(prev => ({
+      setInteractivePlot((prev: any) => ({
         ...prev,
         layout: newLayout
       }));
@@ -195,7 +201,6 @@ export default function PlotView({ configId }: PlotViewProps) {
             {interactivePlot ? (
               <div className="flex justify-left">
                 <Plot 
-                  id="rotating-plot"
                   data={interactivePlot.data}
                   layout={interactivePlot.layout}
                   config={{ responsive: true }}

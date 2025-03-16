@@ -1,7 +1,14 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_cors import CORS, cross_origin
 import sqlite3
-from qsc import Qsc
+try:
+    from essos.fields import near_axis as Qsc
+    essos_found = True
+    print("essos.field.near_axis found")
+except ImportError:
+    from qsc import Qsc
+    essos_found = False
+    print("essos.field.near_axis not found, defaulting to qsc.Qsc")
 import matplotlib
 import matplotlib.pyplot as plt
 import io
@@ -17,6 +24,18 @@ matplotlib.use("Agg")
 
 app = Flask(__name__)
 CORS(app)
+
+nphi = 71
+stel_nfp1 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001],
+                etabar=1.0, nphi=nphi, B2c=1, p2=-1, order='r3', nfp=1)
+stel_nfp2 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001],
+                etabar=1.0, nphi=nphi, B2c=1, p2=-1, order='r3', nfp=2)
+stel_nfp3 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001],
+                etabar=1.0, nphi=nphi, B2c=1, p2=-1, order='r3', nfp=3)
+stel_nfp4 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001],
+                etabar=1.0, nphi=nphi, B2c=1, p2=-1, order='r3', nfp=4)
+stel_nfp5 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001],
+                etabar=1.0, nphi=nphi, B2c=1, p2=-1, order='r3', nfp=5)
 
 # Connect to SQLite database
 def connect_db():
@@ -185,9 +204,9 @@ def determine_order(config):
 
     if B2c is None:
         return "r1"
-    elif B2c is not None:
+    elif (B2c is not None) and (not essos_found):
         return "r3"
-    return "r1"  # Default to r1 if detection fails
+    return "r1"  # Default to r1 if detection of B2c fails or using ESSOS
 
 # Modified function to generate plot data for interactive visualization
 def generate_plot(stel, config_id):
@@ -204,15 +223,15 @@ def generate_plot(stel, config_id):
         for r in radii_to_try:
             try:
                 ntheta = 30  # Poloidal resolution
-                nphi = stel.nfp*2*20   # Toroidal resolution
-                ntheta_fourier = 30  # Fourier resolution
-                mpol = 6  # Number of poloidal modes
-                ntor = 6  # Number of toroidal modes
+                nphi_plot = stel.nfp*2*20   # Toroidal resolution
+                ntheta_fourier = 20  # Fourier resolution
+                mpol = 5  # Number of poloidal modes
+                ntor = 5  # Number of toroidal modes
                 
                 # Get the boundary data
                 start_time = time()
                 x_2D_plot, y_2D_plot, z_2D_plot, R_2D = stel.get_boundary(
-                    r=r, ntheta=ntheta, nphi=nphi, ntheta_fourier=ntheta_fourier,
+                    r=r, ntheta=ntheta, nphi=nphi_plot, ntheta_fourier=ntheta_fourier,
                     mpol=mpol, ntor=ntor
                 )
                 print(f"Getting boundary data took {time() - start_time:.2f} seconds")
@@ -254,7 +273,7 @@ def generate_plot(stel, config_id):
         
         # Get the magnetic field strength on the surface for coloring
         theta1D = np.linspace(0, 2 * np.pi, ntheta)
-        phi1D = np.linspace(0, 2 * np.pi, nphi)
+        phi1D = np.linspace(0, 2 * np.pi, nphi_plot)
         phi2D, theta2D = np.meshgrid(phi1D, theta1D)
         Bmag = stel.B_mag(r, theta2D, phi2D)
         
@@ -375,26 +394,33 @@ def generate_grid_plot(stel):
         
         # Create individual plots for all diagnostics
         plot_names = [
-            'R0', 'Z0', 'R0p', 'Z0p', 'R0pp', 'Z0pp',
-            'R0ppp', 'Z0ppp', 'curvature', 'torsion', 'sigma', 
-            'X1c', 'Y1c', 'Y1s', 'elongation', 'L_grad_B'
+            'R0', 'Z0',
+            #, 'R0p', 'Z0p', 'R0pp', 'Z0pp',
+            # 'R0ppp', 'Z0ppp',
+            'curvature', 'torsion', 'sigma', 
+            # 'X1c', 'Y1c', 'Y1s',
+            'elongation', 'L_grad_B'
         ]
         
         # Add order-specific plots
-        if order != 'r1':
+        if order != 'r1' and (not essos_found):
             plot_names.extend([
-                'L_grad_grad_B', 'B20', 'V1', 'V2', 'V3',
-                'X20', 'X2c', 'X2s', 'Y20', 'Y2c', 'Y2s', 'Z20', 'Z2c', 'Z2s'
+                'L_grad_grad_B', 'B20',
+                # 'V1', 'V2', 'V3',
+                # 'X20', 'X2c', 'X2s', 'Y20', 'Y2c', 'Y2s', 'Z20', 'Z2c', 'Z2s'
             ])
             
-        if order == 'r3':
-            plot_names.extend(['X3c1', 'Y3c1', 'Y3s1'])
+        # if order == 'r3':
+        #     plot_names.extend(['X3c1', 'Y3c1', 'Y3s1'])
         
         # Special cases with custom data
         special_cases = {
             '1/L_grad_B': stel.inv_L_grad_B,
-            '1/L_grad_grad_B': stel.grad_grad_B_inverse_scale_length_vs_varphi
+            # '1/L_grad_grad_B': stel.grad_grad_B_inverse_scale_length_vs_varphi
         }
+        
+        if order != 'r1' and (not essos_found):
+            special_cases['1/L_grad_grad_B']=stel.grad_grad_B_inverse_scale_length_vs_varphi
         
         # Create plots for standard attributes and special cases
         all_plots = [(name, None, name in ['curvature', 'elongation', 'L_grad_B']) for name in plot_names] + \
@@ -405,7 +431,7 @@ def generate_grid_plot(stel):
             if plot: individual_plots.append(plot)
         
         # Add singularity radius plot for r2 and r3 orders
-        if order != 'r1':
+        if order != 'r1' and (not essos_found):
             data = stel.r_singularity_vs_varphi.copy()
             data[data > 1e20] = np.nan  # Handle large values
             plot = create_individual_plot('r_singularity', data=data, y0=True)
@@ -450,13 +476,31 @@ def get_stel_from_config(config):
     _, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar, B2c, p2, _, _ = config
     order = determine_order(config)
     config_params = {"rc": [1, rc1, rc2, rc3],"zs": [0, zs1, zs2, zs3],
-        "nfp": nfp,"etabar": etabar,"order": order,"nphi": 71,}
-    if B2c is not None:
-        config_params["B2c"] = B2c
-    if p2 is not None:
-        config_params["p2"] = p2
+        "nfp": nfp,"etabar": etabar,"order": order,"nphi": nphi,}
+    if B2c is not None: config_params["B2c"] = B2c
+    else: config_params["B2c"] = 1
+    if p2 is not None: config_params["p2"] = p2
+    else: config_params["p2"] = -1
+    
     start_time = time()
-    stel = Qsc(**config_params)
+    if   nfp == 1: stel = stel_nfp1
+    elif nfp == 2: stel = stel_nfp2
+    elif nfp == 3: stel = stel_nfp3
+    elif nfp == 4: stel = stel_nfp4
+    elif nfp == 5: stel = stel_nfp5
+    if essos_found:
+        x = np.array([1, rc1, rc2, rc3, 0, zs1, zs2, zs3, etabar])
+        stel.x = x
+    else:
+        nfourier = stel.nfourier
+        x = stel.get_dofs()
+        x[nfourier * 0 : nfourier * 1] = config_params["rc"]
+        x[nfourier * 1 : nfourier * 2] = config_params["zs"]
+        x[nfourier * 4 + 0] = config_params["etabar"]
+        x[nfourier * 4 + 3] = config_params["B2c"]
+        x[nfourier * 4 + 4] = config_params["p2"]
+        stel.set_dofs(x)
+    # stel = Qsc(**config_params)
     print(f"Creating Qsc object took {time() - start_time:.2f} seconds")
     return stel
 
