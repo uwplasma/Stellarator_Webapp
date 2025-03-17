@@ -5,9 +5,10 @@ try:
     from essos.fields import near_axis as Qsc
     essos_found = True
     print("essos.field.near_axis found")
-except ImportError:
+except Exception as e:
     from qsc import Qsc
     essos_found = False
+    print(e)
     print("essos.field.near_axis not found, defaulting to qsc.Qsc")
 import matplotlib
 import matplotlib.pyplot as plt
