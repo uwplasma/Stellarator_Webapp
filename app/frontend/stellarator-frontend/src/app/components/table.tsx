@@ -31,7 +31,7 @@ function StellaratorTable() {
       filterField = filterModel.items[0].field || "";
     }
     axios
-      .get("https://stellarator.physics.wisc.edu/appframe/backend/api/configs", {
+      .get("https://stellarator.physics.wisc.edu/backend/api/configs", {
         params: {
           page: page + 1,
           limit: pageSize,
