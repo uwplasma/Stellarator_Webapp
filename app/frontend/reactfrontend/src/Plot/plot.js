@@ -7,7 +7,7 @@ function PlotView() {
   const [plotData, setPlotData] = useState("");
 
   useEffect(() => {
-    axios.get(`https://stellarator.physics.wisc.edu/app/api/plot/${configId}`)
+    axios.get(`https://stellarator.physics.wisc.edu/api/plot/${configId}`)
       .then(response => {
         // The API returns an object with "plot_data"
         setPlotData(response.data.plot_data);

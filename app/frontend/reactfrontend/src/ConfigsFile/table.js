@@ -28,7 +28,7 @@ function StellaratorTable() {
     }
 
     axios
-      .get("https://stellarator.physics.wisc.edu/app/backend/api/configs", {
+      .get("https://stellarator.physics.wisc.edu/backend/api/configs", {
         params: {
           page: page + 1,
           limit: pageSize,

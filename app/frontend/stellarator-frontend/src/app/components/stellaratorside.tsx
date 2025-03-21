@@ -50,7 +50,7 @@ function StellaratorTable() {
     }).toString();
 
     axios
-      .get(`https://stellarator.physics.wisc.edu/app/backend/api/configs?${queryParams}`)
+      .get(`https://stellarator.physics.wisc.edu/backend/api/configs?${queryParams}`)
       .then(response => {
         setConfigs(response.data.configs || []);
         setTotalPages(response.data.totalPages || 1);
