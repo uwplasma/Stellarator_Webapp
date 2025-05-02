@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %} Stellarator {% endblock title %}
+
+{% block head %}
+<style>
+    .display-6 {
+        font-size: 1.25rem !important;
+    }
+</style>
+{% endblock head %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <h1>Stellarator Database at the University of Wisconsin-Madison      </h1>
+    <div className="image-explanation" style={{ marginTop: "20px" }}>
+      <div className="explanation">
+          <p className="explanation-1">
+            You can visit our group's website{" "}
+            <a href="https://rogerio.physics.wisc.edu" target="_blank" rel="noopener noreferrer">
+             here.
+            </a>
+          </p>
+
+          <p className="explanation-1">
+            All of our codes are open source and available {" "}
+            <a href="https://github.com/uwplasma" target="_blank" rel="noopener noreferrer">
+             here.
+            </a>
+          </p>
+        <p className="explanation-2">
+          Please explore our database below. It contains a list of quasisymmetric stellarators created using the near-axis expansion.
+          The database and its use to develop a machine learning model are explained in our publication {" "}
+            <a href="https://arxiv.org/abs/2409.00564" target="_blank" rel="noopener noreferrer">
+             here.
+            </a>
+        </p>
+        <div class="col-md-6">
+            <img src="{{ url_for('static', filename='main.jpg') }}" class="img-fluid rounded" alt="About us image">
+        </div>
+    </div>
+</div>
+
+<div class="container mt-5">
+    <div class="d-flex justify-content-center align-items-center flex-column mb-5">
+        <h2>Select a Stellarator Configuration</h2>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="example" class="table table-bordered mt-2">
+                    <thead>
+                        <tr>
+                            <th>View Plot</th>
+                            <th>ID</th>
+                            <th>rc1</th>
+                            <th>rc2</th>
+                            <th>rc3</th>
+                            <th>zs1</th>
+                            <th>zs2</th>
+                            <th>zs3</th>
+                            <th>nfp</th>
+                            <th>etabar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for config in configs %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('plot', config_id=config[0]) }}">View</a>
+                            </td>
+                            <td>{{ config[0] }}</td>
+                            <td>{{ config[1] }}</td>
+                            <td>{{ config[2] }}</td>
+                            <td>{{ config[3] }}</td>
+                            <td>{{ config[4] }}</td>
+                            <td>{{ config[5] }}</td>
+                            <td>{{ config[6] }}</td>
+                            <td>{{ config[7] }}</td>
+                            <td>{{ config[8] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock content %}
+
+{% block js %}
+<script>
+    new DataTable('#example');
+</script>
+{% endblock js %}
