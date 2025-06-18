@@ -76,7 +76,7 @@ function StellaratorTable() {
           size="small"
           onClick={(e) => {
             e.stopPropagation(); // Prevent row selection when clicking button
-            window.open(`/plot/${params.row.id}`, "_blank");
+            window.open(`/app/plot/${params.row.id}`, "_blank");
           }}
         >
           View
@@ -92,32 +92,34 @@ function StellaratorTable() {
   variant="contained"
   color="primary"
   onClick={() => {
-    // Store reference to first window we open
-    let firstWindow: Window | null = null;
-    
-    // Function to open windows one by one
-    const openWindowsSequentially = (ids, index = 0) => {
-      if (index >= ids.length) return;
-      
-      // Open the window and store reference to first one
-      const newWindow = window.open(`/plot/${ids[index]}`, "_blank");
-      if (index === 0) firstWindow = newWindow;
-      
-      // Wait before opening next window
-      setTimeout(() => {
-        openWindowsSequentially(ids, index + 1);
-      }, 800); // Larger delay to avoid browser blocking
-    };
-    
-    // Start opening windows
     if (selectedRowIds.length > 0) {
-      // Alert user if many tabs will be opened
-      if (selectedRowIds.length > 5) {
-        if (confirm(`You're about to open ${selectedRowIds.length} tabs. Continue?`)) {
-          openWindowsSequentially(selectedRowIds);
+      // First warn about popup blockers
+      if (selectedRowIds.length > 1) {
+        alert("Please allow popup windows in your browser settings if not all tabs open.");
+      }
+      
+      // Create an array of the IDs
+      const ids = [...selectedRowIds];
+      
+      // Open the first window immediately - this will usually work
+      if (ids.length > 0) {
+        window.open(`/app/plot/${ids[0]}`, "_blank");
+        
+        // Then open the rest with a slight delay to improve chances
+        if (ids.length > 1) {
+          setTimeout(() => {
+            // Try to open the remaining windows
+            for (let i = 1; i < ids.length; i++) {
+              const newWindow = window.open(`/app/plot/${ids[i]}`, "_blank");
+              
+              // Check if window was blocked
+              if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                alert(`Your browser blocked opening ${ids.length - 1} additional tabs. Please check your popup blocker settings.`);
+                break;
+              }
+            }
+          }, 100);
         }
-      } else {
-        openWindowsSequentially(selectedRowIds);
       }
     }
   }}
