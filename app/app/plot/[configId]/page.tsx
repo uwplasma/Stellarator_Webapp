@@ -1,10 +1,10 @@
 "use client"
 
 import React from 'react';
-import PlotView from '../../components/plot';
+import PlotView from '../../../components/plot';
 import { useParams } from 'next/navigation';
 
-export default function PlotPage() {
+function PlotPage() {
   const params = useParams();
   const configId = params.configId as string;
   
@@ -23,3 +23,4 @@ export default function PlotPage() {
     </div>
   );
 }
+export default PlotPage()
