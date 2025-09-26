@@ -40,7 +40,7 @@ stel_nfp5 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001],
 
 # Connect to SQLite database
 def connect_db():
-    return sqlite3.connect("XGStels.db")  # Path to your SQLite database file
+    return sqlite3.connect("/home/rjorge/Stellarator_Webapp/app/backend/XGStels.db")  # Path to your SQLite database file  # Path to your SQLite database file
 
 # Modified API endpoint to support pagination and search
 @app.route("/api/configs", methods=["GET"])
