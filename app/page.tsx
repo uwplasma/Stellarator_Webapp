@@ -258,7 +258,7 @@ const numericCols = [
   "vacuum_magnetic_well",
   "maximum_elongation",
   "mirror_ratio",
-  "number_of_field_periods_nfp",
+  "numberoffieldperiodsnfp",
 ];
 
 const Page: React.FC = () => {
@@ -339,7 +339,7 @@ setRanges(initRanges);
             key={col}
             style={{
               border: "1px solid #ccc",
-              borderRadius: 8,
+              borderRadius: 10,
               padding: 16,
               marginBottom: 16,
             }}
