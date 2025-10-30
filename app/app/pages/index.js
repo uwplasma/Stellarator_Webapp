@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import StellaratorTable from "../components/table"; // Adjust the import path
+import StellaratorTable from "../../components/table"; // Adjust the import path
 
 const ConfigList = () => {
   const [configs, setConfigs] = useState([]);
