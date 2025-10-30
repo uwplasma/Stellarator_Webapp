@@ -21,7 +21,7 @@ function ConfigList() {
     <div className="header-container">
       
       <h1>Stellarator Database at the University of Wisconsin-Madison       </h1>
-      <div className="image-explanation" style={{ marginTop: "20px" }}>
+      {/* <div className="image-explanation" style={{ marginTop: "20px" }}>
         <div className="explanation">
             <p className="explanation-1">
               You can visit our group's website{" "}
@@ -51,7 +51,7 @@ function ConfigList() {
             className="Stellarator-image"
           />
         </div>
-      </div>
+      </div> */}
 
       <div style={{ marginTop: "50px", backgroundColor: "white" }}>
         <h2>Interactive 3D Model</h2>

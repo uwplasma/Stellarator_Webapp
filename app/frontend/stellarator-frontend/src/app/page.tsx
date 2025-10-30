@@ -22,7 +22,7 @@ const ConfigList = () => {
 
   return (
     <div className="header-container">
-      <header className="tiny-header">
+      {/* <header className="tiny-header">
         <h1>UWPlasma Stellarators</h1>
       </header>
       <h1 style={{ 
@@ -74,7 +74,7 @@ const ConfigList = () => {
             Your browser does not support HTML5 video.
           </video>
         </div>
-      </div>
+      </div> */}
 
       <div className="table-container">
         <StellaratorTable />

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "UWPlasma Stellarators",
-  description: "Stellarator Database at the University of Wisconsin-Madison",
+  description: "",//"Stellarator Database at the University of Wisconsin-Madison",
 };
 
 export default function RootLayout({

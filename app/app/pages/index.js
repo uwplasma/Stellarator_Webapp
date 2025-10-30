@@ -18,7 +18,7 @@ const ConfigList = () => {
   return (
     <div className="header-container">
       <h1>A Repository of Quasi-symmetric Stellarator Designs       </h1>
-      <div className="image-explanation" style={{ marginTop: "20px" }}>
+      {/* <div className="image-explanation" style={{ marginTop: "20px" }}>
         <div className="explanation">
             <p className="explanation-1">
               You can visit our group's website{" "}
@@ -48,7 +48,7 @@ const ConfigList = () => {
             className="Stellarator-image"
           />
         </div>
-      </div>
+      </div> */}
 
       <div className="table-container">
         <StellaratorTable />
