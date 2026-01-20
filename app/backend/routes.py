@@ -1,4 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import send_file
+import io
+import csv
+import os
 from flask_cors import CORS, cross_origin
 import sqlite3
 try:
@@ -40,7 +44,8 @@ stel_nfp5 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001],
 
 # Connect to SQLite database
 def connect_db():
-    return sqlite3.connect("/home/rjorge/Stellarator_Webapp/app/backend/XGStels.db")  # Path to your SQLite database file  # Path to your SQLite database file
+    db_path = os.path.join(os.path.dirname(__file__), "XGStels.db")
+    return sqlite3.connect(db_path)  # Path to your SQLite database file  
 
 # Modified API endpoint to support pagination and search
 @app.route("/api/configs", methods=["GET"])
@@ -545,6 +550,118 @@ def get_plot_grid_api(config_id):
         "plot_data": plot_result["image"],
         "interactive_data": plot_result["interactive_data"]
     })
+
+@app.route("/api/download/<int:config_id>", methods=["GET"])
+@cross_origin()
+def download_config(config_id):
+    """Download a single configuration as JSON or CSV"""
+
+    # Get the format from query param (default to JSON)
+    file_format = request.args.get("format", "json").lower()
+
+    # Connect to database and fetch the configuration
+    conn = connect_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        """SELECT id, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar, B2c, p2, 
+        iota, beta, DMerc_times_r2, min_L_grad_B, r_singularity, 
+        B20_variation FROM XGStels WHEre id = ?""",
+        (config_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+
+    # If config not found, return error
+    if not row:
+        return jsonify({"error": "Configuration not found"}), 404
+    
+    # Column names (must match SELECT order)
+    columns = ["id", "rc1", "rc2", "rc3", "zs1", "zs2", "zs3", "nfp",                                            
+                "etabar", "B2c", "p2", "iota", "beta", "DMerc_times_r2",                                          
+                "min_L_grad_B", "r_singularity", "B20_variation"]
+
+    # Create a dictionary from the row
+    config_data = dict(zip(columns, row))
+
+    if file_format == "csv":
+        # Create CSV in memory
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=columns)
+        writer.writeheader()
+        writer.writerow(config_data)
+
+        # Convert to bytes for download
+        mem_file = io.BytesIO()
+        mem_file.write(output.getvalue().encode('utf-8'))
+        mem_file.seek(0)
+
+        return send_file(                                                                                        
+             mem_file,                                                                                            
+             mimetype='text/csv',                                                                                 
+             as_attachment=True,                                                                                  
+             download_name=f'stellarator_config_{config_id}.csv'                                                  
+        )            
+    else:
+        # Return JSON (default)
+        return jsonify(config_data)
+
+@app.route("/api/download/bulk", methods=["GET"])
+@cross_origin()
+def downlaod_bulk():
+    """Download multiple configs as JSON or CSV"""
+
+    # Get params
+    file_format = request.args.get("format", "json").lower()
+    ids_param = request.args.get("ids", "")
+
+    # Parse the comma-separated IDs
+    if not ids_param:
+        return jsonify({"error": "No IDs provided"}), 400
+    
+    try:
+        config_ids = [int(id.strip()) for id in ids_param.split(",")]
+    except ValueError:
+        return jsonify({"error": "Invalid ID format"}), 400
+
+    # Build query with placeholders for each ID
+    placeholders = ",".join(["?" for _ in config_ids])
+
+    conn = connect_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        f"""SELECT id, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar, B2c, p2, iota, beta, 
+        DMerc_times_r2, min_L_grad_B, r_singularity, 
+        B20_variation FROM XGStels WHERE id IN ({placeholders})""",
+        config_ids
+    )    
+    rows = cursor.fetchall()
+    conn.close()
+
+    columns = ["id", "rc1", "rc2", "rc3", "zs1", "zs2", "zs3", "nfp",                                            
+                "etabar", "B2c", "p2", "iota", "beta", "DMerc_times_r2",                                          
+                "min_L_grad_B", "r_singularity", "B20_variation"]
+    
+    # Convert all rows to dictionaries
+    configs = [dict(zip(columns, row)) for row in rows]
+
+    if file_format == 'csv':
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=columns)
+        writer.writeheader()
+        writer.writerows(configs) # Note: writerows (plural) for multiple
+
+        mem_file = io.BytesIO()
+        mem_file.write(output.getvalue().encode('utf-8'))
+        mem_file.seek(0)
+        
+        return send_file(                                                                                        
+             mem_file,                                                                                            
+             mimetype='text/csv',                                                                                 
+             as_attachment=True,                                                                                  
+             download_name=f'stellarator_configs_bulk.csv'                                                        
+        ) 
+    else:
+        return jsonify({"configs": configs})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
