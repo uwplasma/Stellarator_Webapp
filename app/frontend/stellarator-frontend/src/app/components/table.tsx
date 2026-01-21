@@ -5,38 +5,58 @@ import axios from "axios";
 import { DataGrid } from "@mui/x-data-grid";
 import Paper from "@mui/material/Paper";
 import Button from "@mui/material/Button";
+import TextField from "@mui/material/TextField";
+import IconButton from "@mui/material/IconButton";
+import DownloadIcon from "@mui/icons-material/Download"; 
 import Link from "next/link";
-import { GridFilterModel, GridRowId } from "@mui/x-data-grid";
+import { GridRowId, GridPagination } from "@mui/x-data-grid";
+import Box from "@mui/material/Box";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+
+// Type definition for stellarator configuration
+interface StellaratorConfig {
+  id: number;
+  rc1: string | number;
+  rc2: string | number;
+  zs1: string | number;
+  zs2: string | number;
+  nfp: number;
+  etabar: string | number;
+  B2c: string | number;
+  iota: string | number;
+  beta: string | number;
+  r_singularity: string | number;
+}
 
 function StellaratorTable() {
-  const [configs, setConfigs] = useState([]);
+  const [configs, setConfigs] = useState<StellaratorConfig[]>([]);
   const [totalRows, setTotalRows] = useState(0);
   const [paginationModel, setPaginationModel] = useState({
     page: 0,
     pageSize: 100  
   });
   
-  const [filterModel, setFilterModel] = useState<GridFilterModel>({
-    items: []
-  });
   // State to store the selected rows' IDs
   const [selectedRowIds, setSelectedRowIds] = useState<GridRowId[]>([]);
 
+  // Custom filter states
+  const [nfpFilter, setNfpFilter] = useState<number | "">("");
+  const [idFilter, setIdFilter] = useState<string>("");
+
+  // Tracking download format
+  const [downloadFormat, setDownloadFormat] = useState<"json" | "csv">("json");
+
   useEffect(() => {
     const { page, pageSize } = paginationModel;
-    let filterValue = "";
-    let filterField = "";
-    if (filterModel.items.length > 0) {
-      filterValue = filterModel.items[0].value || "";
-      filterField = filterModel.items[0].field || "";
-    }
     axios
       .get("https://stellarator.physics.wisc.edu/backend/api/configs", {
         params: {
           page: page + 1,
           limit: pageSize,
-          filter: filterValue,
-          filter_field: filterField
+          search_nfp: nfpFilter !== "" ? nfpFilter : undefined,
         }
       })
       .then(response => {
@@ -44,7 +64,7 @@ function StellaratorTable() {
         setTotalRows(response.data.count || 0);
       })
       .catch(error => console.error(error));
-  }, [paginationModel, filterModel]);
+  }, [paginationModel, nfpFilter, idFilter]);
 
   // Define the columns for your data, including a new "Open" action column
   const columns = [
@@ -66,10 +86,30 @@ function StellaratorTable() {
     { field: "r_singularity", headerName: "r_singularity", width: 130, flex: 1 },
     // { field: "B20_variation", headerName: "B20_variation", width: 130, flex: 1 },
     {
+      field: "download",
+      headerName: "Download",
+      width: 80,
+      flex: 0.5,
+      sortable: false,
+      renderCell: (params: { row: StellaratorConfig }) => (
+        <IconButton
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDownload(params.row.id);
+          }}
+          title="Download configuration data"
+        >
+          <DownloadIcon fontSize ="small" />
+        </IconButton>
+      )
+    },
+
+    {
       field: "open",
       headerName: "Plot",
       width: 100,
-      flex: 0.5,
+      flex: 1,
       renderCell: (params) => (
         <Button 
           variant="contained" 
@@ -85,12 +125,119 @@ function StellaratorTable() {
     }
   ];
 
+  // Footer component with "Go to page" input
+  function CustomFooter() {
+    return (
+      <Box sx={{marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2 }}>
+        <TextField
+          label="Go to page"
+          type="number"
+          size="small"
+          sx={{ width: 200, marginBottom: 3 }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              const page = parseInt((e.target as HTMLInputElement).value) - 1;
+              setPaginationModel(prev => ({ ...prev, page }));
+            }
+          }}
+        />
+        <GridPagination />
+      </Box>
+    );
+  }
+
+  // Clear all filters
+  const handleClearFilters = () => {
+    setNfpFilter("");
+    setIdFilter("");
+    setPaginationModel(prev => ({ ...prev, page: 0 }));
+  };
+
+  const handleDownload = (configId: number) => {
+    const url = `https://stellarator.physics.wisc.edu/backend/api/download/${configId}?format=${downloadFormat}`;
+    window.open(url, "_blank");
+  };
+
+  const handleBulkDownload = () => {
+    if (selectedRowIds.length === 0) return;
+    const ids = selectedRowIds.join(",");
+    const url =
+    `https://stellarator.physics.wisc.edu/backend/api/download/bulk?ids=${ids}&format=${downloadFormat}`;
+    window.open(url, "_blank");
+  };
+
   return (
-    <Paper sx={{ height: 500, width: "100%", marginTop: "50px" }}>
+    <Paper sx={{ width: "100%", marginTop: "50px", marginBottom: "10px", padding: 1 }}>
       <h2>Select a Stellarator Configuration</h2>
+
+      {/* Filter Controls */}
+      <Box sx={{ display: 'flex', gap: 2, marginTop: 2, marginBottom: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>NFP</InputLabel>
+          <Select
+            value={nfpFilter}
+            label="NFP"
+            onChange={(e) => {
+              setNfpFilter(e.target.value as number | "");
+              setPaginationModel(prev => ({ ...prev, page: 0 }));
+            }}
+          >
+            <MenuItem value="">All</MenuItem>
+            <MenuItem value={1}>1</MenuItem>
+            <MenuItem value={2}>2</MenuItem>
+            <MenuItem value={3}>3</MenuItem>
+            <MenuItem value={4}>4</MenuItem>
+            <MenuItem value={5}>5</MenuItem>
+          </Select>
+        </FormControl>
+
+        <TextField
+          label="Search by ID"
+          size="small"
+          value={idFilter}
+          onChange={(e) => {
+            setIdFilter(e.target.value);
+            setPaginationModel(prev => ({ ...prev, page: 0 }));
+          }}
+          sx={{ width: 150 }}
+        />
+
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={handleClearFilters}
+          disabled={nfpFilter === "" && idFilter === ""}
+        >
+          Clear Filters
+        </Button>
+        
+        <FormControl size="small" sx={{ minWidth: 100}}>
+          <InputLabel>Format</InputLabel>
+          <Select
+            value={downloadFormat}
+            label="Format"
+            onChange={(e) => setDownloadFormat(e.target.value as "json" | "csv")}
+          >
+            <MenuItem value="json">JSON</MenuItem>
+            <MenuItem value="csv">CSV</MenuItem>
+          </Select>
+        </FormControl>
+
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={handleBulkDownload}
+          disabled={selectedRowIds.length === 0}
+          startIcon={<DownloadIcon />}
+        >
+          Download Selected ({selectedRowIds.length})
+        </Button>
+
+      </Box>
+
       <Button
-  variant="contained"
-  color="primary"
+        variant="contained"
+        color="primary"
   onClick={() => {
     if (selectedRowIds.length > 0) {
       // First warn about popup blockers
@@ -124,7 +271,7 @@ function StellaratorTable() {
     }
   }}
   disabled={selectedRowIds.length === 0}
-  sx={{ marginBottom: 2 }}
+  sx={{ marginBottom: 2, marginTop: 1 }}
 >
   Open All Selected ({selectedRowIds.length})
 </Button>
@@ -133,13 +280,8 @@ function StellaratorTable() {
         columns={columns}
         pagination
         paginationMode="server"
-        filterMode="server"
         paginationModel={paginationModel}
         onPaginationModelChange={(newModel) => setPaginationModel(newModel)}
-        onFilterModelChange={(newFilter) => {
-          setFilterModel(newFilter);
-          setPaginationModel(prev => ({ ...prev, page: 0 }));
-        }}
         pageSizeOptions={[25, 50, 100]}
         rowCount={totalRows}
         checkboxSelection
@@ -149,7 +291,10 @@ function StellaratorTable() {
         onRowSelectionModelChange={(newSelection) => {
           setSelectedRowIds(newSelection as GridRowId[]);
         }}
-        sx={{ border: 0 }}
+        sx={{ marginLeft: 0, border: 0, height:500 }}
+        slots={{
+          footer: CustomFooter
+        }}
       />
     </Paper>
   );
