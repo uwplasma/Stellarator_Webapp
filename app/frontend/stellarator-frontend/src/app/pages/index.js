@@ -6,7 +6,7 @@ const ConfigList = () => {
   const [configs, setConfigs] = useState([]);
 
   useEffect(() => {
-    axios.get("https://stellarator.physics.wisc.edu/backend/api/configs")
+    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/configs`)
       .then(response => {
         setConfigs(response.data);
       })
