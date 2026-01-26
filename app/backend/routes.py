@@ -28,19 +28,24 @@ from time import time
 matplotlib.use("Agg")
 
 app = Flask(__name__)
-CORS(app)
+# Security: Restrict CORS to known origins only
+CORS(app, origins=[
+    "https://stellarator.physics.wisc.edu",
+    "http://localhost:3000",  # Development
+    "http://127.0.0.1:3000"   # Development
+])
+
+
+# Security: Add security headers to all responses
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    return response
+
 
 nphi = 71
-stel_nfp1 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001],
-                etabar=1.0, nphi=nphi, B2c=1, p2=-1, order='r3', nfp=1)
-stel_nfp2 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001],
-                etabar=1.0, nphi=nphi, B2c=1, p2=-1, order='r3', nfp=2)
-stel_nfp3 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001],
-                etabar=1.0, nphi=nphi, B2c=1, p2=-1, order='r3', nfp=3)
-stel_nfp4 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001],
-                etabar=1.0, nphi=nphi, B2c=1, p2=-1, order='r3', nfp=4)
-stel_nfp5 = Qsc(rc=[1,0.1,0.01, 0.001], zs=[0,0.1,0.01, 0.001],
-                etabar=1.0, nphi=nphi, B2c=1, p2=-1, order='r3', nfp=5)
 
 # Connect to SQLite database
 def connect_db():
@@ -54,6 +59,10 @@ def get_configs():
     # Get query parameters for pagination and search
     page = request.args.get("page", default=1, type=int)
     limit = request.args.get("limit", default=500, type=int)
+
+    # Security: Enforce pagination bounds to prevent resource exhaustion
+    page = max(1, min(page, 10000))  # Page must be between 1 and 10000
+    limit = max(1, min(limit, 1000))  # Limit must be between 1 and 1000
 
     # Existing individual search parameters
     search_rc1 = request.args.get("search_rc1", default="", type=str)
@@ -72,6 +81,27 @@ def get_configs():
     search_min_L_grad_B= request.args.get("search_min_L_grad_B", default="", type=str)
     search_r_singularity= request.args.get("search_r_singularity", default="", type=str)
     search_B20_variation= request.args.get("search_B20_variation", default="", type=str)
+    search_id = request.args.get("search_id", default="", type=str)
+
+    # Range filter parameters (min/max for sliders)
+    iota_min = request.args.get("iota_min", default=None, type=float)
+    iota_max = request.args.get("iota_max", default=None, type=float)
+    beta_min = request.args.get("beta_min", default=None, type=float)
+    beta_max = request.args.get("beta_max", default=None, type=float)
+    r_singularity_min = request.args.get("r_singularity_min", default=None, type=float)
+    r_singularity_max = request.args.get("r_singularity_max", default=None, type=float)
+    etabar_min = request.args.get("etabar_min", default=None, type=float)
+    etabar_max = request.args.get("etabar_max", default=None, type=float)
+    B2c_min = request.args.get("B2c_min", default=None, type=float)
+    B2c_max = request.args.get("B2c_max", default=None, type=float)
+    rc1_min = request.args.get("rc1_min", default=None, type=float)
+    rc1_max = request.args.get("rc1_max", default=None, type=float)
+    rc2_min = request.args.get("rc2_min", default=None, type=float)
+    rc2_max = request.args.get("rc2_max", default=None, type=float)
+    zs1_min = request.args.get("zs1_min", default=None, type=float)
+    zs1_max = request.args.get("zs1_max", default=None, type=float)
+    zs2_min = request.args.get("zs2_min", default=None, type=float)
+    zs2_max = request.args.get("zs2_max", default=None, type=float)
 
     # Get filter parameters from MUI DataGrid
     filter_value = request.args.get("filter", default="", type=str)
@@ -87,6 +117,11 @@ def get_configs():
     data_query = "SELECT id, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar, B2c, p2, iota, beta, DMerc_times_r2, min_L_grad_B, r_singularity, B20_variation FROM XGStels"
     where_clauses = []
     params = []
+
+    # Search by ID (partial matching)
+    if search_id:
+        where_clauses.append("CAST(id AS TEXT) LIKE ?")
+        params.append(f"%{search_id}%")
 
     # Existing individual search parameters (AND logic)
     if search_rc1:
@@ -138,6 +173,62 @@ def get_configs():
         where_clauses.append("B20_variation LIKE ?")
         params.append(f"%{search_B20_variation}%")
 
+    # Range filters (min/max from sliders)
+    if iota_min is not None:
+        where_clauses.append("iota >= ?")
+        params.append(iota_min)
+    if iota_max is not None:
+        where_clauses.append("iota <= ?")
+        params.append(iota_max)
+    if beta_min is not None:
+        where_clauses.append("beta >= ?")
+        params.append(beta_min)
+    if beta_max is not None:
+        where_clauses.append("beta <= ?")
+        params.append(beta_max)
+    if r_singularity_min is not None:
+        where_clauses.append("r_singularity >= ?")
+        params.append(r_singularity_min)
+    if r_singularity_max is not None:
+        where_clauses.append("r_singularity <= ?")
+        params.append(r_singularity_max)
+    if etabar_min is not None:
+        where_clauses.append("etabar >= ?")
+        params.append(etabar_min)
+    if etabar_max is not None:
+        where_clauses.append("etabar <= ?")
+        params.append(etabar_max)
+    if B2c_min is not None:
+        where_clauses.append("B2c >= ?")
+        params.append(B2c_min)
+    if B2c_max is not None:
+        where_clauses.append("B2c <= ?")
+        params.append(B2c_max)
+    if rc1_min is not None:
+        where_clauses.append("rc1 >= ?")
+        params.append(rc1_min)
+    if rc1_max is not None:
+        where_clauses.append("rc1 <= ?")
+        params.append(rc1_max)
+    if rc2_min is not None:
+        where_clauses.append("rc2 >= ?")
+        params.append(rc2_min)
+    if rc2_max is not None:
+        where_clauses.append("rc2 <= ?")
+        params.append(rc2_max)
+    if zs1_min is not None:
+        where_clauses.append("zs1 >= ?")
+        params.append(zs1_min)
+    if zs1_max is not None:
+        where_clauses.append("zs1 <= ?")
+        params.append(zs1_max)
+    if zs2_min is not None:
+        where_clauses.append("zs2 >= ?")
+        params.append(zs2_min)
+    if zs2_max is not None:
+        where_clauses.append("zs2 <= ?")
+        params.append(zs2_max)
+
     # Apply the DataGrid filter
     allowed_fields = {"rc1", "rc2", "rc3", "zs1", "zs2", "zs3", "nfp", "etabar", "B2c", "p2", "iota", "beta", "DMerc_times_r2", "min_L_grad_B", "r_singularity", "B20_variation"}
     if filter_field and filter_field in allowed_fields and filter_value:
@@ -188,6 +279,86 @@ def get_configs():
     }
     jsonified_data = jsonify(data)
     return jsonified_data
+
+
+@app.route("/api/ranges", methods=["GET"])
+@cross_origin()
+def get_ranges():
+    """Get min/max ranges for all numeric parameters (for slider bounds)"""
+    conn = connect_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT
+            MIN(iota), MAX(iota),
+            MIN(beta), MAX(beta),
+            MIN(r_singularity), MAX(r_singularity),
+            MIN(etabar), MAX(etabar),
+            MIN(B2c), MAX(B2c),
+            MIN(rc1), MAX(rc1),
+            MIN(rc2), MAX(rc2),
+            MIN(zs1), MAX(zs1),
+            MIN(zs2), MAX(zs2)
+        FROM XGStels
+    """)
+    row = cursor.fetchone()
+    conn.close()
+
+    return jsonify({
+        "iota": {"min": row[0], "max": row[1]},
+        "beta": {"min": row[2], "max": row[3]},
+        "r_singularity": {"min": row[4], "max": row[5]},
+        "etabar": {"min": row[6], "max": row[7]},
+        "B2c": {"min": row[8], "max": row[9]},
+        "rc1": {"min": row[10], "max": row[11]},
+        "rc2": {"min": row[12], "max": row[13]},
+        "zs1": {"min": row[14], "max": row[15]},
+        "zs2": {"min": row[16], "max": row[17]}
+    })
+
+
+@app.route("/api/scatter", methods=["GET"])
+@cross_origin()
+def get_scatter_data():
+    """Get lightweight data for scatter plots (sampled configs, plottable fields)"""
+    # Limit points per NFP for performance (default 2000 per NFP = 10k total max)
+    max_per_nfp = request.args.get("limit", default=2000, type=int)
+    max_per_nfp = max(100, min(max_per_nfp, 10000))  # Bound between 100-10000
+
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    # Group by NFP for easier frontend processing
+    result = {1: [], 2: [], 3: [], 4: [], 5: []}
+
+    # Fetch sampled data for each NFP separately for better distribution
+    for nfp_val in [1, 2, 3, 4, 5]:
+        cursor.execute("""
+            SELECT id, nfp, iota, beta, r_singularity, etabar, B2c, rc1, rc2, zs1, zs2
+            FROM XGStels
+            WHERE nfp = ?
+            ORDER BY RANDOM()
+            LIMIT ?
+        """, (nfp_val, max_per_nfp))
+
+        rows = cursor.fetchall()
+        for row in rows:
+            config_id, nfp, iota, beta, r_sing, etabar, B2c, rc1, rc2, zs1, zs2 = row
+            result[nfp_val].append({
+                "id": config_id,
+                "iota": abs(iota) if iota else 0,
+                "beta": beta or 0,
+                "r_singularity": r_sing or 0,
+                "etabar": etabar or 0,
+                "B2c": B2c or 0,
+                "rc1": rc1 or 0,
+                "rc2": rc2 or 0,
+                "zs1": zs1 or 0,
+                "zs2": zs2 or 0
+            })
+
+    conn.close()
+    return jsonify(result)
+
 
 # Function to fetch configurations from the SQLite database
 def fetch_configs():
@@ -348,8 +519,8 @@ def generate_plot(stel, config_id):
             return {"image": img_data, "interactive_data": None}
         
     except Exception as e:
-        print(f"Error generating plot: {e}")
-        return {"image": None, "interactive_data": None, "error": str(e)}
+        print(f"Error generating plot: {e}")  # Log full error server-side
+        return {"image": None, "interactive_data": None, "error": "Failed to generate visualization"}
     
 
 def generate_grid_plot(stel):
@@ -474,39 +645,40 @@ def generate_grid_plot(stel):
             img_data = base64.b64encode(buffer.getvalue()).decode("utf-8")
             buffer.close()
         except Exception as e:
-            print(f"Error generating plot: {e}")
-            return {"image": None, "interactive_data": None, "error": str(e)}
+            print(f"Error generating plot: {e}")  # Log full error server-side
+            return {"image": None, "interactive_data": None, "error": "Failed to generate visualization"}
         return {"image": img_data, "interactive_data": None}
 
 def get_stel_from_config(config):
+    """
+    Create a new Qsc instance from a database config row.
+
+    Note: We create a fresh instance per request to ensure thread-safety.
+    The previous approach of reusing global instances and mutating them
+    caused race conditions under concurrent load.
+    """
     _, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar, B2c, p2, _, _ = config
     order = determine_order(config)
-    config_params = {"rc": [1, rc1, rc2, rc3],"zs": [0, zs1, zs2, zs3],
-        "nfp": nfp,"etabar": etabar,"order": order,"nphi": nphi,}
-    if B2c is not None: config_params["B2c"] = B2c
-    else: config_params["B2c"] = 1
-    if p2 is not None: config_params["p2"] = p2
-    else: config_params["p2"] = -1
-    
-    start_time = time()
-    if   nfp == 1: stel = stel_nfp1
-    elif nfp == 2: stel = stel_nfp2
-    elif nfp == 3: stel = stel_nfp3
-    elif nfp == 4: stel = stel_nfp4
-    elif nfp == 5: stel = stel_nfp5
-    if essos_found:
-        x = np.array([1, rc1, rc2, rc3, 0, zs1, zs2, zs3, etabar])
-        stel.x = x
+    config_params = {
+        "rc": [1, rc1, rc2, rc3],
+        "zs": [0, zs1, zs2, zs3],
+        "nfp": nfp,
+        "etabar": etabar,
+        "order": order,
+        "nphi": nphi,
+    }
+    if B2c is not None:
+        config_params["B2c"] = B2c
     else:
-        nfourier = stel.nfourier
-        x = stel.get_dofs()
-        x[nfourier * 0 : nfourier * 1] = config_params["rc"]
-        x[nfourier * 1 : nfourier * 2] = config_params["zs"]
-        x[nfourier * 4 + 0] = config_params["etabar"]
-        x[nfourier * 4 + 3] = config_params["B2c"]
-        x[nfourier * 4 + 4] = config_params["p2"]
-        stel.set_dofs(x)
-    # stel = Qsc(**config_params)
+        config_params["B2c"] = 1
+    if p2 is not None:
+        config_params["p2"] = p2
+    else:
+        config_params["p2"] = -1
+
+    start_time = time()
+    # Create a fresh Qsc instance for thread-safety
+    stel = Qsc(**config_params)
     print(f"Creating Qsc object took {time() - start_time:.2f} seconds")
     return stel
 
@@ -595,73 +767,42 @@ def download_config(config_id):
         mem_file.write(output.getvalue().encode('utf-8'))
         mem_file.seek(0)
 
-        return send_file(                                                                                        
-             mem_file,                                                                                            
-             mimetype='text/csv',                                                                                 
-             as_attachment=True,                                                                                  
-             download_name=f'stellarator_config_{config_id}.csv'                                                  
-        )            
-    else:
-        # Return JSON (default)
-        return jsonify(config_data)
-
-@app.route("/api/download/bulk", methods=["GET"])
-@cross_origin()
-def downlaod_bulk():
-    """Download multiple configs as JSON or CSV"""
-
-    # Get params
-    file_format = request.args.get("format", "json").lower()
-    ids_param = request.args.get("ids", "")
-
-    # Parse the comma-separated IDs
-    if not ids_param:
-        return jsonify({"error": "No IDs provided"}), 400
-    
-    try:
-        config_ids = [int(id.strip()) for id in ids_param.split(",")]
-    except ValueError:
-        return jsonify({"error": "Invalid ID format"}), 400
-
-    # Build query with placeholders for each ID
-    placeholders = ",".join(["?" for _ in config_ids])
-
-    conn = connect_db()
-    cursor = conn.cursor()
-    cursor.execute(
-        f"""SELECT id, rc1, rc2, rc3, zs1, zs2, zs3, nfp, etabar, B2c, p2, iota, beta, 
-        DMerc_times_r2, min_L_grad_B, r_singularity, 
-        B20_variation FROM XGStels WHERE id IN ({placeholders})""",
-        config_ids
-    )    
-    rows = cursor.fetchall()
-    conn.close()
-
-    columns = ["id", "rc1", "rc2", "rc3", "zs1", "zs2", "zs3", "nfp",                                            
-                "etabar", "B2c", "p2", "iota", "beta", "DMerc_times_r2",                                          
-                "min_L_grad_B", "r_singularity", "B20_variation"]
-    
-    # Convert all rows to dictionaries
-    configs = [dict(zip(columns, row)) for row in rows]
-
-    if file_format == 'csv':
+        return send_file(
+             mem_file,
+             mimetype='text/csv',
+             as_attachment=True,
+             download_name=f'stellarator_config_{config_id}.csv'
+        )
+    elif file_format == "txt":
+        # Create plain text key-value format
         output = io.StringIO()
-        writer = csv.DictWriter(output, fieldnames=columns)
-        writer.writeheader()
-        writer.writerows(configs) # Note: writerows (plural) for multiple
+        for key, value in config_data.items():
+            output.write(f"{key}: {value}\n")
 
         mem_file = io.BytesIO()
         mem_file.write(output.getvalue().encode('utf-8'))
         mem_file.seek(0)
-        
-        return send_file(                                                                                        
-             mem_file,                                                                                            
-             mimetype='text/csv',                                                                                 
-             as_attachment=True,                                                                                  
-             download_name=f'stellarator_configs_bulk.csv'                                                        
-        ) 
+
+        return send_file(
+            mem_file,
+            mimetype='text/plain',
+            as_attachment=True,
+            download_name=f'stellarator_config_{config_id}.txt'
+        )
     else:
-        return jsonify({"configs": configs})
+        # Return JSON as downloadable file
+        json_str = json.dumps(config_data, indent=2)
+        mem_file = io.BytesIO()
+        mem_file.write(json_str.encode('utf-8'))
+        mem_file.seek(0)
+
+        return send_file(
+            mem_file,
+            mimetype='application/json',
+            as_attachment=True,
+            download_name=f'stellarator_config_{config_id}.json'
+        )
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

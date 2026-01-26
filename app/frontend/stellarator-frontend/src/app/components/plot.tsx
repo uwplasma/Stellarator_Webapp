@@ -22,13 +22,20 @@ export default function PlotView({ configId }: PlotViewProps) {
   // State for boundary plot
   const [plotData, setPlotData] = useState("");
   const [interactivePlot, setInteractivePlot] = useState<any>(null);
-  
+
+  // State for configuration metadata
+  const [configData, setConfigData] = useState<any>(null);
+
   // State for diagnostic plots
   const [gridPlotData, setGridPlotData] = useState("");
   const [individualPlots, setIndividualPlots] = useState<Record<string, any>>({});
   const [availablePlots, setAvailablePlots] = useState<string[]>([]);
   const [selectedPlot, setSelectedPlot] = useState<string>("");
-  
+
+  // Axis scale types for diagnostic plots (linear or log)
+  const [xAxisScale, setXAxisScale] = useState<"linear" | "log">("linear");
+  const [yAxisScale, setYAxisScale] = useState<"linear" | "log">("linear");
+
   const [loading, setLoading] = useState(true);
 
   // Add these state variables near your other useState declarations
@@ -51,17 +58,39 @@ export default function PlotView({ configId }: PlotViewProps) {
     up: { x: 0, y: 0, z: 1 }
   });
 
+  // Helper function to download files properly (works across all browsers)
+  const downloadFile = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
+  };
+
   useEffect(() => {
     if (configId) {
       setLoading(true);
-      
+
       // Set up API requests
-      const boundaryRequest = axios.get(`https://stellarator.physics.wisc.edu/backend/api/plot/${configId}`);
-      const gridRequest = axios.get(`https://stellarator.physics.wisc.edu/backend/api/grid/${configId}`);
+      const boundaryRequest = axios.get(`${process.env.NEXT_PUBLIC_API_URL}/plot/${configId}`);
+      const gridRequest = axios.get(`${process.env.NEXT_PUBLIC_API_URL}/grid/${configId}`);
+      const configRequest = axios.get(`${process.env.NEXT_PUBLIC_API_URL}/download/${configId}?format=json`);
       
-      // Execute both requests in parallel
-      Promise.all([boundaryRequest, gridRequest])
-        .then(([boundaryResponse, gridResponse]) => {
+      // Execute all requests in parallel
+      Promise.all([boundaryRequest, gridRequest, configRequest])
+        .then(([boundaryResponse, gridResponse, configResponse]) => {
+          // Store config metadata for download section
+          setConfigData(configResponse.data);
+
           // Process boundary plot data
           setPlotData(boundaryResponse.data.plot_data);
           if (boundaryResponse.data.interactive_data) {
@@ -189,57 +218,109 @@ export default function PlotView({ configId }: PlotViewProps) {
   }
 
   return (
-    <div className="container mt-5">
-      <h1 className="text-2xl font-bold mb-4">Stellarator Configuration {configId}</h1>
-      
+    <div className="container mt-5" style={{ padding: '40px 20px 0 20px' }}>
+      <div style={{
+        marginBottom: '40px',
+        textAlign: 'left'
+      }}>
+        <h3 style={{
+          fontSize: '1rem',
+          
+          margin: 0,
+          color: '#1a1a1a'
+        }}>Stellarator Configuration <strong>{configId}</strong></h3>
+      </div>
+
       {loading ? (
         <p>Loading visualizations...</p>
       ) : (
         <>
-          <section className="mb-10">
-            <h2 className="text-xl font-bold mb-3">Boundary Visualization</h2>
-            {interactivePlot ? (
-              <div className="flex justify-left">
-                <Plot 
-                  data={interactivePlot.data}
-                  layout={interactivePlot.layout}
-                  config={{ responsive: true }}
-                  style={{ width: "100%", height: "600px" }}
-                  onRelayout={handleRelayout}
+          {/* Side-by-side plots container */}
+          <div style={{ display: 'flex', gap: '24px', marginBottom: '40px', flexWrap: 'wrap' }}>
+            {/* Boundary Visualization */}
+            <section style={{ flex: '1', minWidth: '400px', textAlign: 'center' }}>
+              <h2 style={{
+                fontSize: '1.5rem',
+                fontWeight: 'bold',
+                marginBottom: '20px',
+                color: '#1a1a1a'
+              }}>Boundary Visualization</h2>
+              {interactivePlot ? (
+                <div style={{ position: 'relative' }}>
+                  <Plot
+                    data={interactivePlot.data}
+                    layout={interactivePlot.layout}
+                    config={{ responsive: true }}
+                    style={{ width: "100%", maxWidth: "500px", height: "450px", border: "4px solid #d1d5db", borderRadius: "8px", margin: "0 auto" }}
+                    onRelayout={handleRelayout}
+                  />
+                  <button
+                    onClick={toggleRotation}
+                    style={{
+                      marginTop: '12px',
+                      backgroundColor: '#2563eb',
+                      color: 'white',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+                  >
+                    {isRotating ? "Stop Rotation" : "Auto-Rotate"}
+                  </button>
+                </div>
+              ) : plotData ? (
+                <img
+                  src={`data:image/png;base64,${plotData}`}
+                  alt="Stellarator Boundary Plot"
+                  style={{ width: "100%", maxWidth: "500px" }}
                 />
-                <button
-                  onClick={toggleRotation}
-                  className="absolute top-4 right-4 bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded-md shadow-sm text-sm"
-                >
-                  {isRotating ? "Stop Rotation" : "Auto-Rotate"}
-                </button>
-              </div>
-            ) : plotData ? (
-              <img
-                src={`data:image/png;base64,${plotData}`}
-                alt="Stellarator Boundary Plot"
-                style={{ width: "100%" }}
-              />
-            ) : (
-              <p>Failed to load boundary visualization.</p>
-            )}
-          </section>
-          
-          {/* Diagnostic Plots with Selection */}
-          <section className="mb-10">
-            <h2 className="text-xl font-bold mb-3">Diagnostic Plots</h2>
-            
+              ) : (
+                <p>Failed to load boundary visualization.</p>
+              )}
+            </section>
+
+            {/* Diagnostic Plots with Selection */}
+            <section style={{ flex: '1', minWidth: '300px', textAlign: 'center' }}>
+            <h2 style={{
+              fontSize: '1.5rem',
+              fontWeight: 'bold',
+              marginBottom: '20px',
+              color: '#1a1a1a'
+            }}>Diagnostic Plots</h2>
+
             {availablePlots.length > 0 ? (
               <div>
-                <div className="mb-4">
-                  <label htmlFor="plot-selector" className="block text-sm font-medium mb-2">
+                <div style={{ marginBottom: '20px' }}>
+                  <label
+                    htmlFor="plot-selector"
+                    style={{
+                      display: 'block',
+                      fontSize: '1.1rem',
+                      fontWeight: '600',
+                      marginBottom: '12px',
+                      color: '#374151'
+                    }}
+                  >
                     Select diagnostic plot:
                   </label>
                   <select
                     id="plot-selector"
-                    className="border rounded px-3 py-2 w-full max-w-md"
                     value={selectedPlot}
                     onChange={(e) => setSelectedPlot(e.target.value)}
+                    style={{
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      padding: '10px 16px',
+                      fontSize: '1rem',
+                      width: '100%',
+                      maxWidth: '400px',
+                      backgroundColor: 'white',
+                      cursor: 'pointer'
+                    }}
                   >
                     {availablePlots.map((plotName) => (
                       <option key={plotName} value={plotName}>
@@ -248,13 +329,95 @@ export default function PlotView({ configId }: PlotViewProps) {
                     ))}
                   </select>
                 </div>
-                
+
+                {/* Axis Scale Selectors */}
+                <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <div>
+                    <label
+                      htmlFor="x-scale"
+                      style={{
+                        fontSize: '0.9rem',
+                        fontWeight: '500',
+                        marginRight: '8px',
+                        color: '#374151'
+                      }}
+                    >
+                      X-Axis Scale:
+                    </label>
+                    <select
+                      id="x-scale"
+                      value={xAxisScale}
+                      onChange={(e) => setXAxisScale(e.target.value as "linear" | "log")}
+                      style={{
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        padding: '6px 12px',
+                        fontSize: '0.9rem',
+                        backgroundColor: 'white',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="linear">Linear</option>
+                      <option value="log">Log</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="y-scale"
+                      style={{
+                        fontSize: '0.9rem',
+                        fontWeight: '500',
+                        marginRight: '8px',
+                        color: '#374151'
+                      }}
+                    >
+                      Y-Axis Scale:
+                    </label>
+                    <select
+                      id="y-scale"
+                      value={yAxisScale}
+                      onChange={(e) => setYAxisScale(e.target.value as "linear" | "log")}
+                      style={{
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        padding: '6px 12px',
+                        fontSize: '0.9rem',
+                        backgroundColor: 'white',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="linear">Linear</option>
+                      <option value="log">Log</option>
+                    </select>
+                  </div>
+                </div>
+
                 {/* Display the selected diagnostic plot */}
                 {selectedPlot && individualPlots[selectedPlot] ? (
-                  <div className="individual-plot-container bg-gray-50 p-4 rounded">
+                  <div style={{
+                    padding: '16px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    width: '100%'
+                  }}>
                     <Plot
                       data={individualPlots[selectedPlot].data}
-                      layout={individualPlots[selectedPlot].layout}
+                      layout={{
+                        ...individualPlots[selectedPlot].layout,
+                        autosize: true,
+                        width: undefined,
+                        height: undefined,
+                        xaxis: {
+                          ...individualPlots[selectedPlot].layout?.xaxis,
+                          type: xAxisScale
+                        },
+                        yaxis: {
+                          ...individualPlots[selectedPlot].layout?.yaxis,
+                          type: yAxisScale
+                        }
+                      }}
                       config={{
                         responsive: true,
                         toImageButtonOptions: {
@@ -265,11 +428,17 @@ export default function PlotView({ configId }: PlotViewProps) {
                           scale: 2  // Higher resolution for saved images
                         }
                       }}
-                      style={{ width: "100%", height: "600px" }}
+                      style={{ width: "100%", maxWidth: "calc(100% - 40px)", height: "350px", margin: "0 auto", border: "4px solid #d1d5db", borderRadius: "8px" }}
+                      useResizeHandler={true}
                     />
-                    <div className="text-center mt-2 text-gray-600">
-                      <p>Tip: Click the camera icon to download this plot as an image</p>
-                    </div>
+                    <p style={{
+                      marginTop: '12px',
+                      color: '#6b7280',
+                      fontSize: '0.9rem',
+                      fontStyle: 'italic'
+                    }}>
+                      Tip: Click the camera icon to download this plot as an image
+                    </p>
                   </div>
                 ) : (
                   <p>Selected plot not available</p>
@@ -286,9 +455,241 @@ export default function PlotView({ configId }: PlotViewProps) {
               <p>Failed to load diagnostic plots.</p>
             )}
           </section>
+          </div>
+
+          {/* Divider line */}
+          <hr style={{
+            border: 'none',
+            borderTop: '1px solid rgba(0, 0, 0, 0.15)',
+            marginTop: '40px',
+            marginBottom: '40px',
+            width: '100%'
+          }} />
+
+          {/* Run Configuration Data Section */}
+          <section style={{
+            marginBottom: '40px'
+          }}>
+            <h2 style={{
+              fontSize: '1.5rem',
+              fontWeight: 'bold',
+              marginBottom: '30px',
+              color: '#1a1a1a'
+            }}>Run Configuration Data</h2>
+
+            {/* Subsection 1: Fetch directly from API */}
+            <div style={{ marginBottom: '40px' }}>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: '600',
+                marginBottom: '16px',
+                color: '#374151',
+                borderBottom: '2px solid #e5e7eb',
+                paddingBottom: '8px'
+              }}>Fetch directly from API</h3>
+              <p style={{
+                fontSize: '0.9rem',
+                color: '#6b7280',
+                marginBottom: '16px'
+              }}>
+                Fetch configuration data directly from our API using Python requests:
+              </p>
+              <pre style={{
+                backgroundColor: '#1f2937',
+                color: '#4ade80',
+                padding: '16px',
+                borderRadius: '8px',
+                overflowX: 'auto',
+                fontSize: '0.875rem',
+                fontFamily: 'monospace',
+                margin: 0
+              }}>
+                <code>{`# pip install qsc requests
+from qsc import Qsc
+import requests
+
+ID_CONFIG = ${configId}
+url = f"https://stellarator.physics.wisc.edu/backend/api/download/{ID_CONFIG}?format=json"
+
+config = requests.get(url).json()
+stel = Qsc(
+    rc=[1, config['rc1'], config['rc2'], config['rc3']],
+    zs=[0, config['zs1'], config['zs2'], config['zs3']],
+    nfp=config['nfp'], etabar=config['etabar'],
+    I2=0., order='r3', B2c=config['B2c'], p2=config['p2']
+)
+
+stel.plot()`}</code>
+              </pre>
+            </div>
+
+            {/* Subsection 2: Download and use locally */}
+            <div>
+              <h3 style={{
+                fontSize: '1.25rem',
+                fontWeight: '600',
+                marginBottom: '16px',
+                color: '#374151',
+                borderBottom: '2px solid #e5e7eb',
+                paddingBottom: '8px'
+              }}>Download and use locally</h3>
+
+              {/* Download Buttons */}
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+                <button
+                  onClick={() => downloadFile(`${process.env.NEXT_PUBLIC_API_URL}/download/${configId}?format=csv`, `stellarator_config_${configId}.csv`)}
+                  style={{
+                    backgroundColor: '#16a34a',
+                    color: 'white',
+                    fontWeight: '600',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#15803d'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#16a34a'}
+                >
+                  Download CSV
+                </button>
+                <button
+                  onClick={() => downloadFile(`${process.env.NEXT_PUBLIC_API_URL}/download/${configId}?format=json`, `stellarator_config_${configId}.json`)}
+                  style={{
+                    backgroundColor: '#2563eb',
+                    color: 'white',
+                    fontWeight: '600',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+                >
+                  Download JSON
+                </button>
+                <button
+                  onClick={() => downloadFile(`${process.env.NEXT_PUBLIC_API_URL}/download/${configId}?format=txt`, `stellarator_config_${configId}.txt`)}
+                  style={{
+                    backgroundColor: '#9333ea',
+                    color: 'white',
+                    fontWeight: '600',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#7e22ce'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#9333ea'}
+                >
+                  Download TXT
+                </button>
+              </div>
+
+              {/* Code Snippets for local use */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {/* Pandas snippet */}
+                <div>
+                  <h4 style={{
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    marginBottom: '12px',
+                    color: '#374151'
+                  }}>Load with Python (pandas)</h4>
+                  <pre style={{
+                    backgroundColor: '#1f2937',
+                    color: '#4ade80',
+                    padding: '16px',
+                    borderRadius: '8px',
+                    overflowX: 'auto',
+                    fontSize: '0.875rem',
+                    fontFamily: 'monospace',
+                    margin: 0
+                  }}>
+                    <code>{`import pandas as pd
+
+# Update the path to where you saved the downloaded file
+data = pd.read_csv('/path/to/stellarator_config_${configId}.csv')
+print(data)`}</code>
+                  </pre>
+                </div>
+
+                {/* qsc snippet */}
+                <div>
+                  <h4 style={{
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    marginBottom: '12px',
+                    color: '#374151'
+                  }}>Use with qsc (Near-Axis Expansion)</h4>
+                  <pre style={{
+                    backgroundColor: '#1f2937',
+                    color: '#4ade80',
+                    padding: '16px',
+                    borderRadius: '8px',
+                    overflowX: 'auto',
+                    fontSize: '0.875rem',
+                    fontFamily: 'monospace',
+                    margin: 0
+                  }}>
+                    <code>{`from qsc import Qsc
+
+# Create stellarator configuration
+stel = Qsc(
+    rc=[1, ${configData?.rc1 ?? 'rc1'}, ${configData?.rc2 ?? 'rc2'}, ${configData?.rc3 ?? 'rc3'}],
+    zs=[0, ${configData?.zs1 ?? 'zs1'}, ${configData?.zs2 ?? 'zs2'}, ${configData?.zs3 ?? 'zs3'}],
+    nfp=${configData?.nfp ?? 'nfp'},
+    etabar=${configData?.etabar ?? 'etabar'},
+    B2c=${configData?.B2c ?? 'B2c'},
+    p2=${configData?.p2 ?? 'p2'}
+)
+
+# Plot the stellarator
+stel.plot()`}</code>
+                  </pre>
+                </div>
+
+                {/* ESSOS snippet */}
+                <div>
+                  <h4 style={{
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    marginBottom: '12px',
+                    color: '#374151'
+                  }}>Use with ESSOS (Alternative)</h4>
+                  <pre style={{
+                    backgroundColor: '#1f2937',
+                    color: '#4ade80',
+                    padding: '16px',
+                    borderRadius: '8px',
+                    overflowX: 'auto',
+                    fontSize: '0.875rem',
+                    fontFamily: 'monospace',
+                    margin: 0
+                  }}>
+                    <code>{`from essos.fields import near_axis as Qsc
+
+# Create stellarator configuration (same parameters as qsc)
+stel = Qsc(
+    rc=[1, ${configData?.rc1 ?? 'rc1'}, ${configData?.rc2 ?? 'rc2'}, ${configData?.rc3 ?? 'rc3'}],
+    zs=[0, ${configData?.zs1 ?? 'zs1'}, ${configData?.zs2 ?? 'zs2'}, ${configData?.zs3 ?? 'zs3'}],
+    nfp=${configData?.nfp ?? 'nfp'},
+    etabar=${configData?.etabar ?? 'etabar'}
+)`}</code>
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </section>
         </>
       )}
-      
+
       <div className="mt-6">
         <Link href="/" className="text-blue-600 hover:text-blue-800">
           Back to Configuration List
