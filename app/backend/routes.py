@@ -5,6 +5,8 @@ import csv
 import os
 from flask_cors import CORS, cross_origin
 import sqlite3
+import jax
+jax.config.update("jax_platform_name", "cpu")
 try:
     from essos.fields import near_axis as Qsc
     essos_found = True
