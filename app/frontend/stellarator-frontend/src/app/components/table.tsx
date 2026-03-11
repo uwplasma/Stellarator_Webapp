@@ -307,6 +307,7 @@ function StellaratorTable() {
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
                   <li>The 5 scatter plots show all configurations grouped by <strong>NFP</strong> (number of field periods).</li>
                   <li>Each point represents a stellarator configuration. Points are colored by <strong>r_singularity</strong> value.</li>
+                  <li>Plots are limited to 2000 randomly sampled points to maintain statistical significance and conserve boot time.</li>
                   <li><strong>Click any point</strong> to open its detail page in a new tab and filter the table to that configuration.</li>
                   <li><strong>Hover</strong> over points to see the configuration ID and parameter values.</li>
                 </ul>
@@ -347,8 +348,8 @@ function StellaratorTable() {
               </Typography>
               <Typography variant="body2" component="div">
                 <ul style={{ margin: 0, paddingLeft: 20 }}>
-                  <li>Use the <strong>sliders</strong> to filter configurations by parameter ranges.</li>
-                  <li>Drag the slider handles to set minimum and maximum values.</li>
+                  <li>Use the <strong>sliders</strong> or <strong>type exact values</strong> into the Min/Max fields to filter configurations by parameter ranges.</li>
+                  <li>Drag the slider handles or enter precise numbers for fine-grained control.</li>
                   <li>Active filters are indicated by <span style={{ color: '#c5050c' }}>(Active)</span> text.</li>
                   <li>Click <strong>Clear All Filters</strong> to reset all filters.</li>
                 </ul>
@@ -597,140 +598,75 @@ function StellaratorTable() {
             Range Filters {hasActiveRangeFilters && <span style={{ color: '#c5050c' }}>(Active)</span>}
           </Typography>
 
-          {/* Iota slider */}
-          <Box sx={{ marginBottom: 2, px: 1 }}>
-            <Typography variant="body2" gutterBottom>Iota: {iotaRange ? `${iotaRange[0].toFixed(3)} - ${iotaRange[1].toFixed(3)}` : 'All'}</Typography>
-            <Slider
-              size="small"
-              value={iotaRange || [paramRanges.iota?.min ?? 0, paramRanges.iota?.max ?? 1]}
-              onChange={(_, newValue) => setIotaRange(newValue as [number, number])}
-              valueLabelDisplay="auto"
-              min={paramRanges.iota?.min ?? 0}
-              max={paramRanges.iota?.max ?? 1}
-              step={0.001}
-              disabled={!paramRanges.iota}
-            />
-          </Box>
-
-          {/* Beta slider */}
-          <Box sx={{ marginBottom: 2, px: 1 }}>
-            <Typography variant="body2" gutterBottom>Beta: {betaRange ? `${betaRange[0].toFixed(4)} - ${betaRange[1].toFixed(4)}` : 'All'}</Typography>
-            <Slider
-              size="small"
-              value={betaRange || [paramRanges.beta?.min ?? 0, paramRanges.beta?.max ?? 1]}
-              onChange={(_, newValue) => setBetaRange(newValue as [number, number])}
-              valueLabelDisplay="auto"
-              min={paramRanges.beta?.min ?? 0}
-              max={paramRanges.beta?.max ?? 1}
-              step={0.0001}
-              disabled={!paramRanges.beta}
-            />
-          </Box>
-
-          {/* r_singularity slider */}
-          <Box sx={{ marginBottom: 2, px: 1 }}>
-            <Typography variant="body2" gutterBottom>r_singularity: {rSingularityRange ? `${rSingularityRange[0].toFixed(3)} - ${rSingularityRange[1].toFixed(3)}` : 'All'}</Typography>
-            <Slider
-              size="small"
-              value={rSingularityRange || [paramRanges.r_singularity?.min ?? 0, paramRanges.r_singularity?.max ?? 1]}
-              onChange={(_, newValue) => setRSingularityRange(newValue as [number, number])}
-              valueLabelDisplay="auto"
-              min={paramRanges.r_singularity?.min ?? 0}
-              max={paramRanges.r_singularity?.max ?? 1}
-              step={0.001}
-              disabled={!paramRanges.r_singularity}
-            />
-          </Box>
-
-          {/* Etabar slider */}
-          <Box sx={{ marginBottom: 2, px: 1 }}>
-            <Typography variant="body2" gutterBottom>Etabar: {etabarRange ? `${etabarRange[0].toFixed(3)} - ${etabarRange[1].toFixed(3)}` : 'All'}</Typography>
-            <Slider
-              size="small"
-              value={etabarRange || [paramRanges.etabar?.min ?? 0, paramRanges.etabar?.max ?? 1]}
-              onChange={(_, newValue) => setEtabarRange(newValue as [number, number])}
-              valueLabelDisplay="auto"
-              min={paramRanges.etabar?.min ?? 0}
-              max={paramRanges.etabar?.max ?? 1}
-              step={0.001}
-              disabled={!paramRanges.etabar}
-            />
-          </Box>
-
-          {/* B2c slider */}
-          <Box sx={{ marginBottom: 2, px: 1 }}>
-            <Typography variant="body2" gutterBottom>B2c: {B2cRange ? `${B2cRange[0].toFixed(3)} - ${B2cRange[1].toFixed(3)}` : 'All'}</Typography>
-            <Slider
-              size="small"
-              value={B2cRange || [paramRanges.B2c?.min ?? 0, paramRanges.B2c?.max ?? 1]}
-              onChange={(_, newValue) => setB2cRange(newValue as [number, number])}
-              valueLabelDisplay="auto"
-              min={paramRanges.B2c?.min ?? 0}
-              max={paramRanges.B2c?.max ?? 1}
-              step={0.001}
-              disabled={!paramRanges.B2c}
-            />
-          </Box>
-
-          {/* rc1 slider */}
-          <Box sx={{ marginBottom: 2, px: 1 }}>
-            <Typography variant="body2" gutterBottom>rc1: {rc1Range ? `${rc1Range[0].toFixed(4)} - ${rc1Range[1].toFixed(4)}` : 'All'}</Typography>
-            <Slider
-              size="small"
-              value={rc1Range || [paramRanges.rc1?.min ?? 0, paramRanges.rc1?.max ?? 1]}
-              onChange={(_, newValue) => setRc1Range(newValue as [number, number])}
-              valueLabelDisplay="auto"
-              min={paramRanges.rc1?.min ?? 0}
-              max={paramRanges.rc1?.max ?? 1}
-              step={0.0001}
-              disabled={!paramRanges.rc1}
-            />
-          </Box>
-
-          {/* rc2 slider */}
-          <Box sx={{ marginBottom: 2, px: 1 }}>
-            <Typography variant="body2" gutterBottom>rc2: {rc2Range ? `${rc2Range[0].toFixed(4)} - ${rc2Range[1].toFixed(4)}` : 'All'}</Typography>
-            <Slider
-              size="small"
-              value={rc2Range || [paramRanges.rc2?.min ?? 0, paramRanges.rc2?.max ?? 1]}
-              onChange={(_, newValue) => setRc2Range(newValue as [number, number])}
-              valueLabelDisplay="auto"
-              min={paramRanges.rc2?.min ?? 0}
-              max={paramRanges.rc2?.max ?? 1}
-              step={0.0001}
-              disabled={!paramRanges.rc2}
-            />
-          </Box>
-
-          {/* zs1 slider */}
-          <Box sx={{ marginBottom: 2, px: 1 }}>
-            <Typography variant="body2" gutterBottom>zs1: {zs1Range ? `${zs1Range[0].toFixed(4)} - ${zs1Range[1].toFixed(4)}` : 'All'}</Typography>
-            <Slider
-              size="small"
-              value={zs1Range || [paramRanges.zs1?.min ?? 0, paramRanges.zs1?.max ?? 1]}
-              onChange={(_, newValue) => setZs1Range(newValue as [number, number])}
-              valueLabelDisplay="auto"
-              min={paramRanges.zs1?.min ?? 0}
-              max={paramRanges.zs1?.max ?? 1}
-              step={0.0001}
-              disabled={!paramRanges.zs1}
-            />
-          </Box>
-
-          {/* zs2 slider */}
-          <Box sx={{ marginBottom: 2, px: 1 }}>
-            <Typography variant="body2" gutterBottom>zs2: {zs2Range ? `${zs2Range[0].toFixed(4)} - ${zs2Range[1].toFixed(4)}` : 'All'}</Typography>
-            <Slider
-              size="small"
-              value={zs2Range || [paramRanges.zs2?.min ?? 0, paramRanges.zs2?.max ?? 1]}
-              onChange={(_, newValue) => setZs2Range(newValue as [number, number])}
-              valueLabelDisplay="auto"
-              min={paramRanges.zs2?.min ?? 0}
-              max={paramRanges.zs2?.max ?? 1}
-              step={0.0001}
-              disabled={!paramRanges.zs2}
-            />
-          </Box>
+          {/* Range filter sliders with typed inputs */}
+          {[
+            { label: "Iota", key: "iota", range: iotaRange, setRange: setIotaRange, step: 0.001, decimals: 3 },
+            { label: "Beta", key: "beta", range: betaRange, setRange: setBetaRange, step: 0.0001, decimals: 4 },
+            { label: "r_singularity", key: "r_singularity", range: rSingularityRange, setRange: setRSingularityRange, step: 0.001, decimals: 3 },
+            { label: "Etabar", key: "etabar", range: etabarRange, setRange: setEtabarRange, step: 0.001, decimals: 3 },
+            { label: "B2c", key: "B2c", range: B2cRange, setRange: setB2cRange, step: 0.001, decimals: 3 },
+            { label: "rc1", key: "rc1", range: rc1Range, setRange: setRc1Range, step: 0.0001, decimals: 4 },
+            { label: "rc2", key: "rc2", range: rc2Range, setRange: setRc2Range, step: 0.0001, decimals: 4 },
+            { label: "zs1", key: "zs1", range: zs1Range, setRange: setZs1Range, step: 0.0001, decimals: 4 },
+            { label: "zs2", key: "zs2", range: zs2Range, setRange: setZs2Range, step: 0.0001, decimals: 4 },
+          ].map(({ label, key, range, setRange, step, decimals }) => {
+            const paramMin = paramRanges[key]?.min ?? 0;
+            const paramMax = paramRanges[key]?.max ?? 1;
+            const currentMin = range ? range[0] : paramMin;
+            const currentMax = range ? range[1] : paramMax;
+            return (
+              <Box key={key} sx={{ marginBottom: 2, px: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>{label}</Typography>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 0.5 }}>
+                  <TextField
+                    size="small"
+                    type="number"
+                    label="Min"
+                    value={range ? range[0] : ''}
+                    placeholder={paramMin.toFixed(decimals)}
+                    onChange={(e) => {
+                      const val = e.target.value === '' ? null : parseFloat(e.target.value);
+                      if (val === null) {
+                        setRange(null);
+                      } else if (!isNaN(val)) {
+                        setRange([Math.max(paramMin, val), currentMax]);
+                      }
+                    }}
+                    inputProps={{ step, min: paramMin, max: paramMax }}
+                    sx={{ flex: 1, '& input': { fontSize: '0.75rem', py: 0.75, textAlign: 'center' } }}
+                  />
+                  <Typography variant="body2" sx={{ color: '#999' }}>–</Typography>
+                  <TextField
+                    size="small"
+                    type="number"
+                    label="Max"
+                    value={range ? range[1] : ''}
+                    placeholder={paramMax.toFixed(decimals)}
+                    onChange={(e) => {
+                      const val = e.target.value === '' ? null : parseFloat(e.target.value);
+                      if (val === null) {
+                        setRange(null);
+                      } else if (!isNaN(val)) {
+                        setRange([currentMin, Math.min(paramMax, val)]);
+                      }
+                    }}
+                    inputProps={{ step, min: paramMin, max: paramMax }}
+                    sx={{ flex: 1, '& input': { fontSize: '0.75rem', py: 0.75, textAlign: 'center' } }}
+                  />
+                </Box>
+                <Slider
+                  size="small"
+                  value={range || [paramMin, paramMax]}
+                  onChange={(_, newValue) => setRange(newValue as [number, number])}
+                  valueLabelDisplay="auto"
+                  min={paramMin}
+                  max={paramMax}
+                  step={step}
+                  disabled={!paramRanges[key]}
+                />
+              </Box>
+            );
+          })}
         </Box>
 
         {/* Right - Table */}

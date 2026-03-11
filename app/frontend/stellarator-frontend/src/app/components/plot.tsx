@@ -534,6 +534,27 @@ stel.plot()`}</code>
                 paddingBottom: '8px'
               }}>Download and use locally</h3>
 
+              {/* Download description */}
+              <p style={{
+                fontSize: '0.9rem',
+                color: '#6b7280',
+                marginBottom: '12px',
+                lineHeight: '1.6'
+              }}>
+                Each file contains the full set of near-axis expansion parameters for this configuration:
+                axis shape coefficients (<strong>rc1, rc2, rc3, zs1, zs2, zs3</strong>),
+                field period number (<strong>nfp</strong>),
+                first-order parameters (<strong>etabar, B2c, p2</strong>),
+                and derived quantities (<strong>iota, beta, DMerc_times_r2, min_L_grad_B, r_singularity, B20_variation</strong>).
+              </p>
+              <p style={{
+                fontSize: '0.85rem',
+                color: '#9ca3af',
+                marginBottom: '16px'
+              }}>
+                <strong>CSV</strong> — single-row spreadsheet format &nbsp;|&nbsp; <strong>JSON</strong> — key-value pairs &nbsp;|&nbsp; <strong>TXT</strong> — plain text, one parameter per line
+              </p>
+
               {/* Download Buttons */}
               <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
                 <button
